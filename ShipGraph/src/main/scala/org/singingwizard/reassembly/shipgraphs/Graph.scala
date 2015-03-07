@@ -1,12 +1,12 @@
 package org.singingwizard.reassembly.shipgraphs
 
-import org.singingwizard.reassembly.geometry._
+import org.singingwizard.swmath.Vec2
 
 case class Shape()
 
 abstract class Graph {
   abstract class Node(shape: Shape) {
-    case class Port(position: Position) {
+    case class Port(position: Vec2) {
       def node = Node.this
     }
     
