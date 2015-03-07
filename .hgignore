@@ -1,0 +1,8 @@
+.metadata
+ShipGraph/bin
+ShipGraph/target
+ShipGraph/project/target
+ShipGraph/project/project/target
+ShipGraph/.cache
+ShipGraph/.classpath
+ShipGraph/.project
