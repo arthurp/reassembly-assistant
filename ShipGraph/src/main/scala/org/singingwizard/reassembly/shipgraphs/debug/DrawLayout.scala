@@ -27,6 +27,8 @@ class LayoutDisplayPanel(layout: Layout) extends JPanel {
   def drawLayout(layout: Layout)(implicit g: Graphics2D) = {
     if (layout.hasOverlaps)
       g.drawString("OVERLAPPING", 0, 20)
+    if (layout.hasImpossibleEdges)
+      g.drawString("IMPOSSIBLE EDGES", 0, 40)
     g.scale(100, 100)
     g.translate(1.5, 1.5)
     g.setStroke(new BasicStroke(0.02f))

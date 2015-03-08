@@ -5,6 +5,9 @@ import org.specs2.runner.JUnitRunner
 import org.singingwizard.swmath._
 import org.junit.runner.RunWith
 
+import org.scalacheck._
+import scalaz._
+
 @RunWith(classOf[JUnitRunner])
 class GraphSpec extends mutable.Specification {
   "A ship graph" >> {
@@ -23,11 +26,17 @@ class GraphSpec extends mutable.Specification {
       g2.connectedPort(n.ports(0)) ==== Some(g.anchor.ports(0))
       g2.connectedPort(g.anchor.ports(0)) ==== Some(n.ports(0))
     }
+    "Generator test" >> {
+      GraphSpec.genGraph.sample
+      true
+    }
   }
 }
 
 @RunWith(classOf[JUnitRunner])
-class GraphLayoutSpec extends mutable.Specification {
+class GraphLayoutSpec extends mutable.Specification with ScalaCheck {
+  import GraphSpec._
+ 
   "A ship graph can be layed out" >> {
     "Empty lays out at 0,0" >> {
       val l = GraphLayoutLens.layoutGraph(Graph.empty)
@@ -41,8 +50,36 @@ class GraphLayoutSpec extends mutable.Specification {
       l.shapes.size ==== 2
       l.shapes(0).tshape.ports(0).position ==== l.shapes(1).tshape.ports(0).position
     }
+    "Lens reversability" >> prop { (g: Graph) =>
+      val l = GraphLayoutLens.lensGraphLayout.get(g)
+      GraphLayoutLens.lensGraphLayout.set(g, l) ==== g
+    }
   }
 }
 
-
+object GraphSpec {
+  val genShape = Gen.oneOf(Shapes.square, Shapes.rightTriangle, Shapes.longTriangle)
+  val genAddNode: Gen[State[Graph, Unit]] = for( s <- genShape ) yield for (_ <- Graph.addNode(s)) yield ()
+  val genConnectPorts: Gen[State[Graph, Unit]] = 
+    for( a <- Gen.posNum[Int]; b <- Gen.posNum[Int]; ap <- Gen.posNum[Int]; bp <- Gen.posNum[Int] ) 
+      yield for {
+      nNodes <- State.gets((_:Graph).nodes.size)
+      an <- State.gets((_:Graph).nodes(a % nNodes))
+      bn <- State.gets((_:Graph).nodes(b % nNodes))
+      porta = an.ports(ap % an.ports.size)
+      portb = bn.ports(bp % bn.ports.size)
+      _ <- State.modify { (g: Graph) =>
+        if (an != bn && porta != portb && g.connectedEdge(porta).isEmpty && g.connectedEdge(portb).isEmpty)
+          g.connectPorts(porta, portb)
+        else
+          g
+      }
+    } yield ()
+  
+  val genGraph: Gen[Graph] = {
+    for( commands <- Gen.containerOf[Vector, State[Graph, Unit]](Gen.oneOf(genAddNode, genConnectPorts)) ) yield
+      commands.foldLeft(Graph.empty)((g, cmd) => cmd exec g) 
+  }
+  implicit val arbGraph: Arbitrary[Graph] = Arbitrary(genGraph)
+}
 

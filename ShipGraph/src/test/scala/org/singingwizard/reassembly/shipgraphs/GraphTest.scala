@@ -3,20 +3,32 @@ package org.singingwizard.reassembly.shipgraphs
 import org.singingwizard.swmath.Mat3
 import org.singingwizard.reassembly.shipgraphs.debug.DrawLayout
 
+import scalaz.State
+
 object GraphTest extends App {
-  val (g1, n1) = Graph.empty.addNode(Shapes.square)
-  val (g2, n2) = g1.addNode(Shapes.square)
-  val (g3, n3) = g2.addNode(Shapes.rightTriangle)
-  val g4 = (g3.
-      connectPorts(n1.ports(0), g2.anchor.ports(0)).
-      connectPorts(n2.ports(1), g2.anchor.ports(3)).
-      connectPorts(n3.ports(1), n2.ports(0)))
-  //val g3 = g1.connectPorts(n1.ports(0), true, g1.anchor.ports(0))
-  val layout = GraphLayoutLens.layoutGraph(g4)
+  import Graph._
+  /*val build: State[Graph, Unit] = for {
+    n1 ← addNode(Shapes.square)
+    n2 ← addNode(Shapes.square)
+    n3 ← addNode(Shapes.square)
+    n4 ← addNode(Shapes.longTriangle)
+    anchor ← getAnchor
+    _ ← connectPorts(n1.ports(0), anchor.ports(0))
+    _ ← connectPorts(n2.ports(1), anchor.ports(3))
+    _ ← connectPorts(n3.ports(1), n2.ports(0))
+    _ ← connectPorts(n1.ports(3), n4.ports(2))
+  } yield ()
+
+  val g = build exec Graph.empty
+  */
+  val g = GraphSpec.genGraph.sample.get
+  val gClean = GraphLayoutLens.lensGraphLayout.mod(_.removeOverlappingUntilNone().removeImpossibleEdges().addMissingEdges(), g).removeUnanchored()
+  val layout = GraphLayoutLens.layoutGraph(gClean)
   println(layout.shapes.mkString("\n"))
+  println(layout.impossibleEdges.mkString("\n"))
   DrawLayout.show(layout)
-  println(g4)
-  println(GraphLayoutLens.graphLayout(g4, layout))
+  println(gClean)
+  println(gClean.connectedComponents().map(_.mkString("\n")).mkString("\n===========\n"))
   /*assert(l.size == 2)
   assert(l.head.transform == Mat3.nil)*/
 }

@@ -80,5 +80,11 @@ object Shapes {
       PortPlacement(Vec2(0.5, 0), Vec2(0, -1)),
       PortPlacement(Vec2(0.5, 0.5), Vec2(1, 1)),
       PortPlacement(Vec2(0, 0.5), Vec2(-1, 0))))
+  val longTriangle = Shape(
+    Vector(Vec2(1, 0), Vec2(0, 2), Vec2(0, 0)),
+    Vector(
+      PortPlacement(Vec2(0.5, 0), Vec2(0, -1)),
+      PortPlacement(Vec2(0, 0.5), Vec2(-1, 0)),
+      PortPlacement(Vec2(0, 1.5), Vec2(-1, 0))))
 }
 
