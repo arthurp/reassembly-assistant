@@ -58,7 +58,16 @@ class GraphLayoutSpec extends mutable.Specification with ScalaCheck {
 }
 
 object GraphSpec {
-  val genShape = Gen.oneOf(Shapes.square, Shapes.rightTriangle, Shapes.longTriangle)
+  val genShape = Gen.oneOf(
+      Shapes.square, 
+      Shapes.rightTriangle, 
+      Shapes.longTriangle, 
+      Shapes.longTriangle.flipped, 
+      Shapes.octogon, 
+      Shapes.smallRectangle, 
+      Shapes.equilateralTriangle,
+      Shapes.regularPolygon(6)
+      )
   val genAddNode: Gen[State[Graph, Unit]] = for( s <- genShape ) yield for (_ <- Graph.addNode(s)) yield ()
   val genConnectPorts: Gen[State[Graph, Unit]] = 
     for( a <- Gen.posNum[Int]; b <- Gen.posNum[Int]; ap <- Gen.posNum[Int]; bp <- Gen.posNum[Int] ) 
@@ -75,9 +84,10 @@ object GraphSpec {
           g
       }
     } yield ()
+  val genChange = Gen.frequency((1, genAddNode), (2, genConnectPorts))
   
   val genGraph: Gen[Graph] = {
-    for( commands <- Gen.containerOf[Vector, State[Graph, Unit]](Gen.oneOf(genAddNode, genConnectPorts)) ) yield
+    for( commands <- Gen.containerOf[Vector, State[Graph, Unit]](genChange) ) yield
       commands.foldLeft(Graph.empty)((g, cmd) => cmd exec g) 
   }
   implicit val arbGraph: Arbitrary[Graph] = Arbitrary(genGraph)

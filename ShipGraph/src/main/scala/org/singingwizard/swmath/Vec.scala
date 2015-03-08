@@ -77,18 +77,27 @@ final case class Vec2(x: Real, y: Real) extends Vec[Vec2] {
 
   @inline def clamped = Vec2(clamp(x), clamp(y))
   def arbitraryPerpendicular = Vec2(y, -x)
+  def counterclockwisePerpendicular = Vec2(y, -x)
   
   @inline def sameHemisphere(o: Vec2) = {
     this * o >= 0
   }
   
-  override def =~(o: Vec2): Boolean = x =~ o.x && y =~ o.y
+  override def =~(o: Vec2): Boolean = x =~ o.x && y =~ o.y  
 }
 object Vec2 {
   def fromAngle(t: Real) = {
     val cost = cos(t)
     val sint = sin(t)
     Vec2(cost, sint)
+  }
+  
+  def intersection(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2): Vec2 = {
+    val x = ( (a1.x*a2.y - a1.y*a2.x) * (b1.x-b2.x) - (a1.x-a2.x) * (b1.x*b2.y - b1.y*b2.x) ) / 
+            ( (a1.x-a2.x)*(b1.y-b2.y) - (a1.y-a2.y)*(b1.x-b2.x) )
+    val y = ( (a1.x*a2.y - a1.y*a2.x) * (b1.y-b2.y) - (a1.y-a2.y) * (b1.x*b2.y - b1.y*b2.x) ) /
+            ( (a1.x-a2.x)*(b1.y-b2.y) - (a1.y-a2.y)*(b1.x-b2.x) )
+    Vec2(x,y)
   }
 }
 

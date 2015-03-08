@@ -21,14 +21,16 @@ object GraphTest extends App {
 
   val g = build exec Graph.empty
   */
-  val g = GraphSpec.genGraph.sample.get
-  val gClean = GraphLayoutLens.lensGraphLayout.mod(_.removeOverlappingUntilNone().removeImpossibleEdges().addMissingEdges(), g).removeUnanchored()
-  val layout = GraphLayoutLens.layoutGraph(gClean)
-  println(layout.shapes.mkString("\n"))
-  println(layout.impossibleEdges.mkString("\n"))
-  DrawLayout.show(layout)
-  println(gClean)
-  println(gClean.connectedComponents().map(_.mkString("\n")).mkString("\n===========\n"))
+  DrawLayout.showMany { () ⇒
+    val g = GraphSpec.genGraph.sample.get
+    val gClean = CleaningAlgorithms.clean(g)
+    val layout = GraphLayoutLens.layoutGraph(gClean)
+    //println(layout.shapes.mkString("\n"))
+    //println(layout.impossibleEdges.mkString("\n"))
+    //println(gClean)
+    //println(gClean.connectedComponents().map(_.mkString("\n")).mkString("\n===========\n"))
+    layout
+  }
   /*assert(l.size == 2)
   assert(l.head.transform == Mat3.nil)*/
 }

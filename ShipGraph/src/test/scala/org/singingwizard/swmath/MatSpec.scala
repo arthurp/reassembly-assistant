@@ -35,7 +35,6 @@ class MatSpec extends mutable.Specification with ScalaCheck {
     }
     "Mat3 rotate to with pivot" >> {
       val m = Mat3.rotate(Vec2(10, 0), Vec2(1, 0), Vec2(0, 1))
-      println(m)
       m * Vec2(10, 0) ==== Vec2(10, 0)
       Mat3.rotate(Vec2(1, 0), Vec2(1, 0), Vec2(0, 1)) * Vec2(2, 0) ==== Vec2(1, 1)
     }

@@ -8,20 +8,24 @@ import java.awt.GridLayout
 import java.awt.geom.AffineTransform
 import java.awt.geom.Ellipse2D
 import java.awt.geom.Line2D
-
 import org.singingwizard.reassembly.shipgraphs._
 import org.singingwizard.swmath._
-
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
+import javax.swing.Timer
+import java.awt.event.ActionListener
+import java.awt.event.ActionEvent
 
-class LayoutDisplayPanel(layout: Layout) extends JPanel {
+class LayoutDisplayPanel(private var glayout_ : Layout) extends JPanel {
   setPreferredSize(new Dimension(600, 600))
+
+  def glayout = glayout_
+  def glayout_=(l: Layout) = glayout_ = l; repaint()
 
   override def paintComponent(g: Graphics): Unit = {
     super.paintComponent(g)
-    drawLayout(layout)(g.create().asInstanceOf[Graphics2D])
+    drawLayout(glayout)(g.create().asInstanceOf[Graphics2D])
   }
 
   def drawLayout(layout: Layout)(implicit g: Graphics2D) = {
@@ -29,8 +33,9 @@ class LayoutDisplayPanel(layout: Layout) extends JPanel {
       g.drawString("OVERLAPPING", 0, 20)
     if (layout.hasImpossibleEdges)
       g.drawString("IMPOSSIBLE EDGES", 0, 40)
-    g.scale(100, 100)
-    g.translate(1.5, 1.5)
+
+    g.translate(150, 150)
+    g.scale(30, 30)
     g.setStroke(new BasicStroke(0.02f))
     g.draw(new Ellipse2D.Double(-0.05, -0.05, 0.1, 0.1))
     for (p ← layout.shapes)
@@ -51,7 +56,7 @@ class LayoutDisplayPanel(layout: Layout) extends JPanel {
       drawLine(v1, v2)
     }
     for (PortPlacement(pos, dir) ← shape.ports) {
-      drawLine(pos, pos - (dir*0.1))
+      drawLine(pos, pos - (dir * 0.1))
     }
   }
 
@@ -73,6 +78,27 @@ object DrawLayout {
         frame.add(new LayoutDisplayPanel(layout))
         frame.pack()
         frame.setVisible(true)
+      }
+    })
+  }
+
+  def showMany(makeLayout: () ⇒ Layout): Unit = {
+    SwingUtilities.invokeLater(new Runnable {
+      def run() = {
+        val frame = new JFrame()
+        frame.getContentPane().setLayout(new GridLayout(1, 1))
+        val display = new LayoutDisplayPanel(makeLayout())
+        frame.add(display)
+        frame.pack()
+        frame.setVisible(true)
+
+        val timer = new Timer(5000, new ActionListener() {
+          def actionPerformed(e: ActionEvent) = {
+            display.glayout = makeLayout()
+            frame.repaint()
+          }
+        })
+        timer.start()
       }
     })
   }

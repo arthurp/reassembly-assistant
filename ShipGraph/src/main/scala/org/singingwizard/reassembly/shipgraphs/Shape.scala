@@ -1,6 +1,7 @@
 package org.singingwizard.reassembly.shipgraphs
 
 import org.singingwizard.swmath._
+import scalaz.syntax.std.ToVectorOps
 
 final class PortPlacement(val position: Vec2, val direction: Vec2) {
   assert(direction.length2 =~ 1)
@@ -14,7 +15,7 @@ final class PortPlacement(val position: Vec2, val direction: Vec2) {
   def transform(trans: Mat3): PortPlacement = {
     PortPlacement(trans * position, trans *# direction)
   }
-
+  
   override def toString = s"$position --> $direction"
 }
 object PortPlacement {
@@ -67,24 +68,57 @@ object Shape {
 }
 
 object Shapes {
-  val square = Shape(
-    Vector(Vec2(1, 0), Vec2(1, 1), Vec2(0, 1), Vec2(0, 0)),
+  val square = regularPolygon(4)
+  val equilateralTriangle = regularPolygonTwoPortsPerSide(3)
+  val smallRectangle = Shape(
+    Vector(Vec2(1, 0), Vec2(1, 0.5), Vec2(0, 0.5), Vec2(0, 0)),
     Vector(
       PortPlacement(Vec2(0.5, 0), Vec2(0, -1)),
-      PortPlacement(Vec2(0, 0.5), Vec2(-1, 0)),
-      PortPlacement(Vec2(0.5, 1), Vec2(0, 1)),
-      PortPlacement(Vec2(1, 0.5), Vec2(1, 0))))
+      PortPlacement(Vec2(0, 0.25), Vec2(-1, 0)),
+      PortPlacement(Vec2(0.5, 0.5), Vec2(0, 1)),
+      PortPlacement(Vec2(1, 0.25), Vec2(1, 0))))
   val rightTriangle = Shape(
     Vector(Vec2(1, 0), Vec2(0, 1), Vec2(0, 0)),
     Vector(
       PortPlacement(Vec2(0.5, 0), Vec2(0, -1)),
       PortPlacement(Vec2(0.5, 0.5), Vec2(1, 1)),
       PortPlacement(Vec2(0, 0.5), Vec2(-1, 0))))
+      
+  val longEdgeCenter = (Vec2(1, 0) + Vec2(0, 2)) / 2
+  val longEdgeVec = (Vec2(1, 0) - Vec2(0, 2)).normalized / 2
+  val longEdgeNorm = Vec2(2, 1)
   val longTriangle = Shape(
     Vector(Vec2(1, 0), Vec2(0, 2), Vec2(0, 0)),
     Vector(
       PortPlacement(Vec2(0.5, 0), Vec2(0, -1)),
       PortPlacement(Vec2(0, 0.5), Vec2(-1, 0)),
-      PortPlacement(Vec2(0, 1.5), Vec2(-1, 0))))
+      PortPlacement(Vec2(0, 1.5), Vec2(-1, 0)),
+      PortPlacement(longEdgeCenter + longEdgeVec, longEdgeNorm),
+      PortPlacement(longEdgeCenter - longEdgeVec, longEdgeNorm)
+      ))
+
+  def regularPolygon(n: Int): Shape = {
+    val centers = (0.0 to 2*math.Pi by (2*math.Pi / n)).take(n).map(t => Vec2.fromAngle(t) / 2)
+    val corners = (for (Seq(c1, c2) <- (centers :+ centers.head).sliding(2)) yield {
+      val p1 = c1.counterclockwisePerpendicular
+      val p2 = c2.counterclockwisePerpendicular
+      Vec2.intersection(c1, c1+p1, c2, c2+p2)
+    }).toVector
+    val ports = for (c <- centers) yield PortPlacement(c, c) 
+    
+    Shape(corners, ports.toVector)
+  }
+  def regularPolygonTwoPortsPerSide(n: Int): Shape = {
+    val s = regularPolygon(n)
+    val lines = s.lines.toIterable
+    val ports = for (((v1, v2), p) <- lines zip (s.ports.tail :+ s.ports.head)) yield {
+      val v = (v1 - v2).normalized / 2
+      Seq(PortPlacement(p.position + v, p.direction), PortPlacement(p.position - v, p.direction))
+    }
+    
+    s.copy(ports = ports.flatten.toVector)
+  }
+      
+  val octogon = regularPolygon(8)
 }
 

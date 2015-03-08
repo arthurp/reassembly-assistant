@@ -28,4 +28,27 @@ class ShapeSpec extends mutable.Specification {
       (Shapes.square overlaps Shapes.rightTriangle) ==== true
     }
   }
+  
+  
+  "regularPolygon" >> {
+    import Shapes._
+    "4" >> {
+      val p = regularPolygon(4)
+      p.vertices.size ==== 4
+      p.lines.size ==== 4
+      p.vertices must contain ((_: Vec2)  =~ Vec2(-0.5, -0.5))
+      p.vertices must contain ((_: Vec2)  =~ Vec2(0.5, -0.5))
+      p.vertices must contain ((_: Vec2)  =~ Vec2(-0.5, 0.5))
+      p.vertices must contain ((_: Vec2)  =~ Vec2(0.5, 0.5))
+    }
+    "3" >> {
+      val p = regularPolygon(3)
+      p.vertices.size ==== 3
+      p.lines.size ==== 3
+      p.ports.size ==== 3
+    }
+    "8" >> {
+      regularPolygon(8).lines.size ==== 8
+    }
+  }
 }

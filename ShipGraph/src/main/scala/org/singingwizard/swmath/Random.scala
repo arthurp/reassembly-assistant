@@ -4,6 +4,7 @@ import scala.math._
 import java.util.concurrent.ThreadLocalRandom
 
 trait Sampler extends Any {
+  def uniformInt(lower: Int, upper: Int): Int
   def uniformReal(): Real
   def uniformSquare(): Vec2
   def uniformCube(): Vec3
@@ -74,10 +75,30 @@ trait Sampler extends Any {
 
 object Random extends Sampler {
   private val rng = new MersenneTwisterFast()
-  
-  private def nextInt(n:Int) = synchronized { rng.nextInt(n) }
+
+  private def nextInt(n: Int) = synchronized { rng.nextInt(n) }
   private def nextDouble() = synchronized { rng.nextDouble() }
   private def nextBoolean() = synchronized { rng.nextBoolean() }
+
+  def uniformInt(lower: Int, upper: Int): Int = {
+    if (lower == upper)
+      lower
+    else {
+      assert(lower < upper)
+      nextInt(upper - lower) + lower
+    }
+  }
+
+  def uniformElement[T](coll: Iterable[T]): Option[T] = {
+    val i = uniformInt(0, coll.size - 1)
+    coll.view.drop(i).headOption
+  }
+  def uniformElement[T](coll: IndexedSeq[T]): Option[T] = {
+    if (coll.isEmpty)
+      None
+    else
+      Some(coll(uniformInt(0, coll.size - 1)))
+  }
 
   def uniformReal(): Real = nextDouble()
   def uniformSquare(): Vec2 = synchronized {
