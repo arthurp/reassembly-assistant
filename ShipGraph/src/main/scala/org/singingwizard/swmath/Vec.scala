@@ -34,12 +34,20 @@ sealed abstract class Vec[V <: Vec[V]] {
     create(values.map(_ / d))
   }
 
+  @inline def unary_- : V =  {
+    create(values.map(-_))
+  }
   def length2: Real = values.map(v => v * v).reduce(_ + _)
 
   def length: Real = sqrt(length2).asInstanceOf[Real]
 
   @inline def normalized: V = this / length
 
+  def =~(o: V): Boolean = {
+    for (i <- 0 until size if !(this(i) =~ o(i))) return false
+    true
+  }
+  
   override def toString = {
     val tags = if (length2 =~ 1) "n" else ""
     values.map(_.toString(4)).mkString("(", ",", s"${if (tags.size > 0) ";" else ""}$tags)")
@@ -65,8 +73,23 @@ final case class Vec2(x: Real, y: Real) extends Vec[Vec2] {
   @inline override def +(o: Vec2): Vec2 = Vec2(x + o.x, y + o.y)
   @inline override def -(o: Vec2): Vec2 = Vec2(x - o.x, y - o.y)
   @inline override def *#(o: Vec2): Vec2 = Vec2(x * o.x, y * o.y)
+  @inline override def unary_- : Vec2 = Vec2(-x, -y)
 
   @inline def clamped = Vec2(clamp(x), clamp(y))
+  def arbitraryPerpendicular = Vec2(y, -x)
+  
+  @inline def sameHemisphere(o: Vec2) = {
+    this * o >= 0
+  }
+  
+  override def =~(o: Vec2): Boolean = x =~ o.x && y =~ o.y
+}
+object Vec2 {
+  def fromAngle(t: Real) = {
+    val cost = cos(t)
+    val sint = sin(t)
+    Vec2(cost, sint)
+  }
 }
 
 final case class Vec3(x: Real, y: Real, z: Real) extends Vec[Vec3] {
@@ -91,7 +114,7 @@ final case class Vec3(x: Real, y: Real, z: Real) extends Vec[Vec3] {
   @inline override def -(o: Vec3): Vec3 = Vec3(x - o.x, y - o.y, z - o.z)
   @inline override def *#(o: Vec3): Vec3 = Vec3(x * o.x, y * o.y, z * o.z)
 
-  @inline def unary_- : Vec3 = Vec3(-x, -y, -z)
+  @inline override def unary_- : Vec3 = Vec3(-x, -y, -z)
 
   @inline override def *(d: Real): Vec3 = Vec3(x * d, y * d, z * d)
   @inline override def /(d: Real): Vec3 = Vec3(x / d, y / d, z / d)

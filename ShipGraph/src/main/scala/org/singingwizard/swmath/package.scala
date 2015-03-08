@@ -11,7 +11,6 @@ package object swmath {
     def toString(len: Int) = s"% .${len}f".format(v)
   }
 
-
   def clamp(v: Real): Real = if (v < 0) 0 else if (v > 1) 1 else v
   
   def checkNormalized(v: => Vec3) {
