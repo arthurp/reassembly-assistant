@@ -16,7 +16,7 @@ import javax.swing.SwingUtilities
 import javax.swing.Timer
 import java.awt.event.ActionListener
 import java.awt.event.ActionEvent
-
+/*
 class LayoutDisplayPanel(private var glayout_ : Layout) extends JPanel {
   setPreferredSize(new Dimension(600, 600))
 
@@ -108,3 +108,4 @@ object DrawLayout {
     new AffineTransform(t(0, 0), t(0, 1), t(1, 0), t(1, 1), t(2, 0), t(2, 1))
   }
 }
+*/

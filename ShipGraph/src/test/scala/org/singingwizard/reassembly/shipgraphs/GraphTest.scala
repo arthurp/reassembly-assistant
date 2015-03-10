@@ -1,27 +1,32 @@
 package org.singingwizard.reassembly.shipgraphs
 
 import org.singingwizard.swmath.Mat3
-import org.singingwizard.reassembly.shipgraphs.debug.DrawLayout
-
 import scalaz.State
+import scalax.collection.immutable.Graph
+
+//import org.singingwizard.reassembly.shipgraphs.debug.DrawLayout
 
 object GraphTest extends App {
-  import Graph._
-  /*val build: State[Graph, Unit] = for {
-    n1 ← addNode(Shapes.square)
-    n2 ← addNode(Shapes.square)
-    n3 ← addNode(Shapes.square)
-    n4 ← addNode(Shapes.longTriangle)
-    anchor ← getAnchor
-    _ ← connectPorts(n1.ports(0), anchor.ports(0))
-    _ ← connectPorts(n2.ports(1), anchor.ports(3))
-    _ ← connectPorts(n3.ports(1), n2.ports(0))
-    _ ← connectPorts(n1.ports(3), n4.ports(2))
-  } yield ()
+  import Ship._
 
-  val g = build exec Graph.empty
-  */
-  DrawLayout.showMany { () ⇒
+  {
+    val s = Ship()
+    val s2 = s.attach(PieceKinds.squareWeak, 0, s.core.ports(0))
+    
+    println(s2)
+  }
+  {
+    val e1 = PlacedPiece(Mat3.nil, PieceKinds.squareWeak)
+    val e2 = PlacedPiece(Mat3.translate(1, 0), PieceKinds.squareWeak)
+    val g = Graph[Port, Edge]() + e1 + e2 + (Port(0, e1) ~ Port(1, e2))
+    println(g)
+    println(g.nodes.size)
+    println(g.edges.size)
+    println(g.edges.map(_.edge).map(v => (v, v.getClass)))
+    println(g.edges.map(_.edge).collect({ case p @ Piece(_) ⇒ p }).size)
+    println(g.edges.map(_.edge).collect({ case c @ Connection(_, _) ⇒ c }).size)
+  }
+  /*DrawLayout.showMany { () ⇒
     val g = GraphSpec.genGraph.sample.get
     val gClean = CleaningAlgorithms.clean(g)
     val layout = GraphLayoutLens.layoutGraph(gClean)
@@ -30,7 +35,5 @@ object GraphTest extends App {
     //println(gClean)
     //println(gClean.connectedComponents().map(_.mkString("\n")).mkString("\n===========\n"))
     layout
-  }
-  /*assert(l.size == 2)
-  assert(l.head.transform == Mat3.nil)*/
+  }*/
 }

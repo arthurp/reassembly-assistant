@@ -4,6 +4,7 @@ import scala.collection.mutable
 import scalaz.Lens
 import org.singingwizard.swmath._
 
+/*
 object GraphLayoutLens {
   import Graph._
 
@@ -84,3 +85,4 @@ object GraphLayoutLens {
 
   val lensGraphLayout = Lens.lensu[Graph, Layout](graphLayout, layoutGraph)
 }
+*/

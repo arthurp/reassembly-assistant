@@ -1,7 +1,7 @@
 package org.singingwizard.reassembly.shipgraphs
 
 import org.singingwizard.swmath._
-
+/*
 case class PlacedShape(id: Graph.NodeID, transform: Mat3, shape: Shape) {
   def overlaps(o: PlacedShape) = tshape overlaps o.tshape
 
@@ -34,3 +34,4 @@ case class Layout(
 
 object Layout {
 }
+*/

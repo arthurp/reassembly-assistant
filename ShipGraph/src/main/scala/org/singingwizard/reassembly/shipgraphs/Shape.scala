@@ -8,7 +8,6 @@ final class PortPlacement(val position: Vec2, val direction: Vec2) {
   def matchingTransform(o: PortPlacement): Mat3 = {
     val trans = Mat3.translate(o.position, position)
     val rot = Mat3.rotate(position, -o.direction, direction)
-    //println(s"Matching: $this, $o: rot\n$rot\ntrans\n$trans")
     trans * rot
   }
 
@@ -41,6 +40,8 @@ case class Shape(vertices: Vector[Vec2], ports: Vector[PortPlacement]) {
 }
 
 object Shape {
+  type PortID = Int
+  
   def overlapsOneDirection(s1full: Shape, s2: Shape): Boolean = {
     val s1 = s1full.transform(Mat3.scale(s1full.centroid, 1-Epsilons.COMPARE_EPSILON))
     //println(s"Checking $s1 lines against $s2")

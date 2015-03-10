@@ -4,6 +4,7 @@ import org.singingwizard.swmath.Random
 import scalaz._
 import scala.collection.mutable
 
+/*
 object CleaningAlgorithms {
   def removeOverlappingUntilNone(g: Graph, l: Layout): Layout = {
     val overlapping = l.findOverlapping()
@@ -54,3 +55,4 @@ object CleaningAlgorithms {
     }
   }
 }
+*/
