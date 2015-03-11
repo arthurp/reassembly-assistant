@@ -8,32 +8,15 @@ import org.singingwizard.reassembly.shipgraphs.debug.DrawLayout
 
 object GraphTest extends App {
   import Ship._
-
-  {
-    val s = Ship()
-    val s2 = s.attach(PieceKinds.squareWeak, 0, s.core.ports(0))
-    
-    println(s2)
-  }
-  {
-    val e1 = PlacedPiece(Mat3.nil, PieceKinds.squareWeak)
-    val e2 = PlacedPiece(Mat3.translate(1, 0), PieceKinds.squareWeak)
-    val g = Graph[Port, Edge]() + e1 + e2 + (Port(0, e1) ~ Port(1, e2))
-    println(g)
-    println(g.nodes.size)
-    println(g.edges.size)
-    println(g.edges.map(_.edge).map(v => (v, v.getClass)))
-    println(g.edges.map(_.edge).collect({ case p @ Piece(_) ⇒ p }).size)
-    println(g.edges.map(_.edge).collect({ case c @ Connection(_, _) ⇒ c }).size)
-  }
-  {
-    val s = GraphSpec.genShip.sample
-    print(s)
-  }
-  DrawLayout.showMany { () ⇒
-    /*val s = Ship()
-    val s2 = s.attach(PieceKinds.squareWeak, 0, s.core.ports(0))
-    */
-    GraphSpec.genShip.sample.get
+  
+  if (false) {
+    for(i <- 0 until 10000) {
+      GraphSpec.genShip.sample
+      println(i)
+    }
+  } else {
+    DrawLayout.showMany { () ⇒
+      GraphSpec.genShip.sample.get
+    }
   }
 }

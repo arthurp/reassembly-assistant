@@ -36,10 +36,10 @@ class ShapeSpec extends mutable.Specification {
       val p = regularPolygon(4)
       p.vertices.size ==== 4
       p.lines.size ==== 4
-      p.vertices must contain ((_: Vec2)  =~ Vec2(-0.5, -0.5))
-      p.vertices must contain ((_: Vec2)  =~ Vec2(0.5, -0.5))
-      p.vertices must contain ((_: Vec2)  =~ Vec2(-0.5, 0.5))
-      p.vertices must contain ((_: Vec2)  =~ Vec2(0.5, 0.5))
+      p.vertices.toSeq must contain ((_: Vec2)  =~ Vec2(-0.5, -0.5))
+      p.vertices.toSeq must contain ((_: Vec2)  =~ Vec2(0.5, -0.5))
+      p.vertices.toSeq must contain ((_: Vec2)  =~ Vec2(-0.5, 0.5))
+      p.vertices.toSeq must contain ((_: Vec2)  =~ Vec2(0.5, 0.5))
     }
     "3" >> {
       val p = regularPolygon(3)

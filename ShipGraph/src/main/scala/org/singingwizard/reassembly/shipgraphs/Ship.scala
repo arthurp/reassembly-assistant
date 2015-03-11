@@ -17,6 +17,8 @@ case class PlacedPiece(transform: Mat3, kind: PieceKind) {
   lazy val tshape = shape.transform(transform)
 
   override def toString = s"$kind@${tshape.centroid}"
+
+  override lazy val hashCode = transform.hashCode ^ kind.hashCode
 }
 
 class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
@@ -39,14 +41,14 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
   }
 
   def overlaps(p: PlacedPiece) = pieces.exists(_.overlaps(p))
-  
+
   /**
    * O(ports.size)
    */
   def findGeometricallyImpliedEdgesFor(p: PlacedPiece) = {
     for {
-      pr <- ports
-      pp <- p.ports
+      pr ← ports
+      pp ← p.ports
       if pr.position =~ pp.position
     } yield pp ~ pr
   }
@@ -85,7 +87,9 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
         }
       }
     }
+    
     def hasUnconnected = !graph.isConnected
+    
     def hasMissingGeometricEdge = {
       pieces.tails exists { ps ⇒
         if (ps.isEmpty) {
@@ -101,12 +105,26 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
         }
       }
     }
+
+    def hasInvalidPieceEdge = {
+      graph.edges exists { edge ⇒
+        edge.edge match {
+          case edge @ Piece(piece) ⇒ {
+            val b = (edge.ports.exists(_.piece != piece) ||
+                piece.ports.map(_.id).toSeq.sorted != (0 until piece.shape.ports.size).toSeq)
+            b
+          }
+          case _ ⇒ false
+        }
+      }
+    }
   }
 
   def validate() = {
     if (validation.hasOverlaps) Some("Graph contains overlapping pieces")
     else if (validation.hasUnconnected) Some("Graph contains has pieces that are not connected to the core")
     else if (validation.hasMissingGeometricEdge) Some("Graph contains touching ports that are not connected by an edge")
+    else if (validation.hasInvalidPieceEdge) Some("Graph contains a piece edge which is not valid w.r.t. it's Piece")
     else None
   }
 }
@@ -158,8 +176,6 @@ object Ship {
       with OuterEdge[N, Piece]
       with SupportNodesIterator[N] {
     val ports = nodesIterator.map(portFromNode).toIndexedSeq
-    assert(ports.forall(_.piece == piece))
-    assert(ports.map(_.id).toSeq.sorted == (0 until piece.shape.ports.size).toSeq)
 
     override def copy[NN](newNodes: Product) = {
       // Hack to get the piece of one of the port nodes
