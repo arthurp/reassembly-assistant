@@ -16,33 +16,28 @@ import javax.swing.SwingUtilities
 import javax.swing.Timer
 import java.awt.event.ActionListener
 import java.awt.event.ActionEvent
-/*
-class LayoutDisplayPanel(private var glayout_ : Layout) extends JPanel {
+
+class LayoutDisplayPanel(private var glayout_ : Ship) extends JPanel {
   setPreferredSize(new Dimension(600, 600))
 
   def glayout = glayout_
-  def glayout_=(l: Layout) = glayout_ = l; repaint()
+  def glayout_=(l: Ship) = glayout_ = l; repaint()
 
   override def paintComponent(g: Graphics): Unit = {
     super.paintComponent(g)
     drawLayout(glayout)(g.create().asInstanceOf[Graphics2D])
   }
 
-  def drawLayout(layout: Layout)(implicit g: Graphics2D) = {
-    if (layout.hasOverlaps)
-      g.drawString("OVERLAPPING", 0, 20)
-    if (layout.hasImpossibleEdges)
-      g.drawString("IMPOSSIBLE EDGES", 0, 40)
-
+  def drawLayout(layout: Ship)(implicit g: Graphics2D) = {
     g.translate(150, 150)
     g.scale(30, 30)
     g.setStroke(new BasicStroke(0.02f))
     g.draw(new Ellipse2D.Double(-0.05, -0.05, 0.1, 0.1))
-    for (p ← layout.shapes)
+    for (p ← layout.pieces)
       drawPlacedShape(p)
   }
 
-  def drawPlacedShape(shape: PlacedShape)(implicit g: Graphics2D) = {
+  def drawPlacedShape(shape: PlacedPiece)(implicit g: Graphics2D) = {
     import DrawLayout._
     val saveAT = g.getTransform()
     //println(s"Transform:\n${shape.transform}")
@@ -70,7 +65,7 @@ class LayoutDisplayPanel(private var glayout_ : Layout) extends JPanel {
 }
 
 object DrawLayout {
-  def show(layout: Layout): Unit = {
+  def show(layout: Ship): Unit = {
     SwingUtilities.invokeLater(new Runnable {
       def run() = {
         val frame = new JFrame()
@@ -82,7 +77,7 @@ object DrawLayout {
     })
   }
 
-  def showMany(makeLayout: () ⇒ Layout): Unit = {
+  def showMany(makeLayout: () ⇒ Ship): Unit = {
     SwingUtilities.invokeLater(new Runnable {
       def run() = {
         val frame = new JFrame()
@@ -108,4 +103,3 @@ object DrawLayout {
     new AffineTransform(t(0, 0), t(0, 1), t(1, 0), t(1, 1), t(2, 0), t(2, 1))
   }
 }
-*/

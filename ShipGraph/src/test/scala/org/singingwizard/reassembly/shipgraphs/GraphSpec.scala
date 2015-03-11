@@ -9,7 +9,7 @@ import scalaz._
 import scalax.collection.GraphEdge.EdgeException
 
 @RunWith(classOf[JUnitRunner])
-class GraphSpec extends mutable.Specification {
+class GraphSpec extends mutable.Specification with ScalaCheck {
   import Ship._
   import scalax.collection.immutable.Graph
 
@@ -57,7 +57,7 @@ class GraphSpec extends mutable.Specification {
     }
     "Nodes should be connected both ways" >> {
       val s1 = Ship()
-      val (s2, n) = s1.attachGet(PieceKinds.squareWeak, 0, s1.core.ports(0))
+      val (s2, Some(n)) = s1.attachGet(PieceKinds.squareWeak, 0, s1.core.ports(0))
       s2.pieceCount must_== 2
       s2.pieces must have size(2)
       s2.connectionCount must_== 1
@@ -68,14 +68,14 @@ class GraphSpec extends mutable.Specification {
       c.isAt(n.ports(0)) ==== true
       c.isAt(s2.core.ports(0)) ==== true
     }
-    /*"Generator test" >> {
-      GraphSpec.genGraph.sample
-      true
-    }*/
+    import GraphSpec._
+    "All spec generated ships are valid" >> prop { (s: Ship) =>
+      s.validate ==== None
+    }
   }
 }
 
-/*
+
 object GraphSpec {
   val genShape = Gen.oneOf(
       Shapes.square, 
@@ -84,32 +84,35 @@ object GraphSpec {
       Shapes.longTriangle.flipped, 
       Shapes.octogon, 
       Shapes.smallRectangle, 
-      Shapes.equilateralTriangle,
+      Shapes.largeEquilateralTriangle,
+      Shapes.smallEquilateralTriangle,
       Shapes.regularPolygon(6)
       )
-  val genAddNode: Gen[State[Graph, Unit]] = for( s <- genShape ) yield for (_ <- Graph.addNode(s)) yield ()
-  val genConnectPorts: Gen[State[Graph, Unit]] = 
-    for( a <- Gen.posNum[Int]; b <- Gen.posNum[Int]; ap <- Gen.posNum[Int]; bp <- Gen.posNum[Int] ) 
-      yield for {
-      nNodes <- State.gets((_:Graph).nodes.size)
-      an <- State.gets((_:Graph).nodes(a % nNodes))
-      bn <- State.gets((_:Graph).nodes(b % nNodes))
-      porta = an.ports(ap % an.ports.size)
-      portb = bn.ports(bp % bn.ports.size)
-      _ <- State.modify { (g: Graph) =>
-        if (an != bn && porta != portb && g.connectedEdge(porta).isEmpty && g.connectedEdge(portb).isEmpty)
-          g.connectPorts(porta, portb)
-        else
-          g
-      }
-    } yield ()
-  val genChange = Gen.frequency((1, genAddNode), (2, genConnectPorts))
   
-  val genGraph: Gen[Graph] = {
-    for( commands <- Gen.containerOf[Vector, State[Graph, Unit]](genChange) ) yield
-      commands.foldLeft(Graph.empty)((g, cmd) => cmd exec g) 
+  val genSmallNum = Gen.choose(1, 100)
+  def genIndex(e: Traversable[_]) = Gen.choose(0, e.size-1)
+  
+  val curratedBlockSelection = false
+  
+  val genPiece = {
+    if (curratedBlockSelection)
+      Gen.oneOf(PieceKinds.squareStrong, PieceKinds.squareWeak)
+    else
+      for (m <- genSmallNum; n <- genSmallNum; s <- genShape) yield PieceKind(s, m, n)
   }
-  implicit val arbGraph: Arbitrary[Graph] = Arbitrary(genGraph)
+      
+  
+  
+  val genAddNode: Gen[Ship => Gen[Ship]] = for( s <- genPiece; i <- genIndex(s.ports) ) yield { g =>
+    for ( portb <- Gen.oneOf(g.disconnectedPorts.toSeq) ) yield {
+      g.attach(s, i, portb)
+    }
+  }
+  
+  val genShip: Gen[Ship] = {
+    Gen.containerOf[Vector, Ship => Gen[Ship]](genAddNode) flatMap { commands =>
+      commands.foldLeft(Gen.const(Ship()))((s, cmd) => s.flatMap(cmd(_)))
+    }
+  }
+  implicit val arbGraph: Arbitrary[Ship] = Arbitrary(genShip)
 }
-
-*/

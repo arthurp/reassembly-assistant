@@ -5,6 +5,10 @@ import scalaz.syntax.std.ToVectorOps
 
 final class PortPlacement(val position: Vec2, val direction: Vec2) {
   assert(direction.length2 =~ 1)
+  
+  /**
+   * Compute the transform that will move/rotate o to connect with this (based on position and direction of both)
+   */
   def matchingTransform(o: PortPlacement): Mat3 = {
     val trans = Mat3.translate(o.position, position)
     val rot = Mat3.rotate(position, -o.direction, direction)
@@ -70,7 +74,12 @@ object Shape {
 
 object Shapes {
   val square = regularPolygon(4)
-  val equilateralTriangle = regularPolygonTwoPortsPerSide(3)
+  val largeEquilateralTriangle = regularPolygonTwoPortsPerSide(3)
+  val smallEquilateralTriangle = {
+    val s = regularPolygon(3)
+    val sideLen = (s.vertices(0) - s.vertices(1)).length
+    s.transform(Mat3.scale(1/sideLen, 1/sideLen))
+  }
   val smallRectangle = Shape(
     Vector(Vec2(1, 0), Vec2(1, 0.5), Vec2(0, 0.5), Vec2(0, 0)),
     Vector(
