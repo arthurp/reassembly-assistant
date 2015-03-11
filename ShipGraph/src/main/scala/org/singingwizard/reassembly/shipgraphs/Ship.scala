@@ -22,9 +22,20 @@ case class PlacedPiece(transform: Mat3, kind: PieceKind) {
 }
 
 class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
-  def core = corePiece.piece
+  
+  /**
+   * O(pieces.size + ports.size)
+   */
+  def add(placed: org.singingwizard.reassembly.shipgraphs.PlacedPiece): Option[Ship] = {
+    val geoEdges = findGeometricallyImpliedEdgesFor(placed)
+    if (overlaps(placed) || geoEdges.isEmpty) {
+      None
+    } else {
+      Some(copy(graph = graph + placed ++ geoEdges))
+    }
+  }
 
-  assert(graph contains corePiece)
+  def core = corePiece.piece
 
   def attach(p: PieceKind, portaID: Shape.PortID, portb: Port) = attachGet(p, portaID, portb)._1
   def attachGet(p: PieceKind, portaID: Shape.PortID, portb: Port): (Ship, Option[PlacedPiece]) = {
@@ -32,14 +43,15 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
     val portbPlace = portb.piece.tshape.ports(portb.id)
     val trans = portbPlace.matchingTransform(porta)
     val placed = PlacedPiece(trans, p)
-    assert(placed.tshape.ports(portaID).position =~ portbPlace.position)
-    if (overlaps(placed)) {
-      (this, None)
-    } else {
-      (copy(graph = graph + placed ++ findGeometricallyImpliedEdgesFor(placed)), Some(placed))
+    add(placed) match {
+      case Some(g) => (g, Some(placed))
+      case None => (this, None)
     }
   }
 
+  /**
+   * O(pieces.size)
+   */
   def overlaps(p: PlacedPiece) = pieces.exists(_.overlaps(p))
 
   /**
@@ -118,6 +130,19 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
         }
       }
     }
+    
+    def hasInvalidConnection = {
+      graph.edges exists { edge ⇒
+        edge.edge match {
+          case Connection(p1, p2) ⇒ !(p1.position =~ p2.position) && !(p1.direction =~ -p2.direction)
+          case _ ⇒ false
+        }
+      }
+    }
+    
+    def missingCore = {
+      !(graph contains corePiece)
+    }
   }
 
   def validate() = {
@@ -125,6 +150,8 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
     else if (validation.hasUnconnected) Some("Graph contains has pieces that are not connected to the core")
     else if (validation.hasMissingGeometricEdge) Some("Graph contains touching ports that are not connected by an edge")
     else if (validation.hasInvalidPieceEdge) Some("Graph contains a piece edge which is not valid w.r.t. it's Piece")
+    else if (validation.hasInvalidConnection) Some("Graph contains a connection which is not valid (ports not aligned)")
+    else if (validation.missingCore) Some("Graph does not contain the ship core")
     else None
   }
 }
@@ -213,6 +240,6 @@ object Ship {
   object Connection {
     def apply(a: Port, b: Port) = new Connection[Port](NodeProduct(a, b))
     def unapply[A <: Port](e: Connection[A]): Option[(Port, Port)] =
-      if (e eq null) None else Some((e._1, e._2))
+      if (e eq null) None else Some((portFromNode(e._1), portFromNode(e._2)))
   }
 }
