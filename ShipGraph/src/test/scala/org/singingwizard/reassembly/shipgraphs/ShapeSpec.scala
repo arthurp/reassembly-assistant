@@ -9,7 +9,7 @@ import org.junit.runner.RunWith
 class ShapeSpec extends mutable.Specification {
   sequential
   
-  "Shape" >> {
+  "Shape.overlaps" >> {
     "Overlaps self" >> {
       (Shapes.square overlaps Shapes.square) ==== true
     }
@@ -21,8 +21,8 @@ class ShapeSpec extends mutable.Specification {
       (Shapes.square overlaps Shapes.square.transform(Mat3.translate(0, 1))) ==== false
     }
     "Does overlap slightly overlapped" >> {
-      (Shapes.square overlaps Shapes.square.transform(Mat3.translate(0.99, 0))) ==== true
-      (Shapes.square overlaps Shapes.square.transform(Mat3.translate(0, 0.99))) ==== true
+      (Shapes.square overlaps Shapes.square.transform(Mat3.translate(0.999, 0))) ==== true
+      (Shapes.square overlaps Shapes.square.transform(Mat3.translate(0, 0.999))) ==== true
     }
     "Overlaps mostly overlapping" >> {
       (Shapes.square overlaps Shapes.rightTriangle) ==== true

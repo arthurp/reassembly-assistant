@@ -21,12 +21,12 @@ case class PlacedPiece(transform: Mat3, kind: PieceKind) {
   override lazy val hashCode = transform.hashCode ^ kind.hashCode
 }
 
-class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
-  
+abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph: Graph[Port, Edge]) {
+  this: ShipT =>
   /**
    * O(pieces.size + ports.size)
    */
-  def add(placed: org.singingwizard.reassembly.shipgraphs.PlacedPiece): Option[Ship] = {
+  def add(placed: org.singingwizard.reassembly.shipgraphs.PlacedPiece): Option[ShipT] = {
     val geoEdges = findGeometricallyImpliedEdgesFor(placed)
     if (overlaps(placed) || geoEdges.isEmpty) {
       None
@@ -35,17 +35,15 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
     }
   }
 
-  def core = corePiece.piece
-
   def attach(p: PieceKind, portaID: Shape.PortID, portb: Port) = attachGet(p, portaID, portb)._1
-  def attachGet(p: PieceKind, portaID: Shape.PortID, portb: Port): (Ship, Option[PlacedPiece]) = {
+  def attachGet(p: PieceKind, portaID: Shape.PortID, portb: Port): (ShipT, Option[PlacedPiece]) = {
     val porta = p.shape.ports(portaID)
     val portbPlace = portb.piece.tshape.ports(portb.id)
     val trans = portbPlace.matchingTransform(porta)
     val placed = PlacedPiece(trans, p)
     add(placed) match {
-      case Some(g) => (g, Some(placed))
-      case None => (this, None)
+      case Some(g) ⇒ (g, Some(placed))
+      case None ⇒ (this, None)
     }
   }
 
@@ -65,11 +63,11 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
     } yield pp ~ pr
   }
 
-  def copy(graph: Graph[Port, Edge] = graph, corePiece: Piece[Port] = corePiece) =
-    new Ship(graph, corePiece)
+  def copy(graph: Graph[Port, Edge]): ShipT
 
+  val prefixString: String 
   override def toString = {
-    s"Ship(${pieces.mkString(", ")}; ${connections.mkString(", ")})"
+    s"$prefixString(${pieces.mkString(", ")}; ${connections.mkString(", ")})"
   }
 
   def get(p: PlacedPiece) = graph.get(p)
@@ -99,9 +97,9 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
         }
       }
     }
-    
+
     def hasUnconnected = !graph.isConnected
-    
+
     def hasMissingGeometricEdge = {
       pieces.tails exists { ps ⇒
         if (ps.isEmpty) {
@@ -123,14 +121,14 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
         edge.edge match {
           case edge @ Piece(piece) ⇒ {
             val b = (edge.ports.exists(_.piece != piece) ||
-                piece.ports.map(_.id).toSeq.sorted != (0 until piece.shape.ports.size).toSeq)
+              piece.ports.map(_.id).toSeq.sorted != (0 until piece.shape.ports.size).toSeq)
             b
           }
           case _ ⇒ false
         }
       }
     }
-    
+
     def hasInvalidConnection = {
       graph.edges exists { edge ⇒
         edge.edge match {
@@ -138,10 +136,6 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
           case _ ⇒ false
         }
       }
-    }
-    
-    def missingCore = {
-      !(graph contains corePiece)
     }
   }
 
@@ -151,8 +145,34 @@ class Ship private (val graph: Graph[Port, Edge], corePiece: Piece[Port]) {
     else if (validation.hasMissingGeometricEdge) Some("Graph contains touching ports that are not connected by an edge")
     else if (validation.hasInvalidPieceEdge) Some("Graph contains a piece edge which is not valid w.r.t. it's Piece")
     else if (validation.hasInvalidConnection) Some("Graph contains a connection which is not valid (ports not aligned)")
-    else if (validation.missingCore) Some("Graph does not contain the ship core")
     else None
+  }
+}
+
+class ShipSegment protected (graph: Graph[Port, Edge])
+    extends ShipGraphBase[ShipSegment](graph) {
+
+  def copy(graph: Graph[Port, Edge]): ShipSegment = new ShipSegment(graph)
+  
+  val prefixString = "Segment"
+}
+
+final class Ship protected (graph: Graph[Port, Edge], corePiece: Piece[Port])
+    extends ShipGraphBase[Ship](graph) {
+  def core = corePiece.piece
+  override def copy(graph: Graph[Port, Edge]) = new Ship(graph, corePiece)
+
+  val prefixString = "Ship"
+  
+  object validationShip {
+    def missingCore = {
+      !(graph contains corePiece)
+    }
+  }
+
+  override def validate() = {
+    if (validationShip.missingCore) Some("Graph does not contain the ship core")
+    else super.validate()
   }
 }
 
