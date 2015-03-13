@@ -13,9 +13,9 @@ case class PlacedPiece(t: Mat3, kind: PieceKind) {
   def overlaps(o: PlacedPiece) = tshape overlaps o.tshape
 
   def shape = kind.shape
-  val ports = (0 until kind.ports.size).map(Ship.Port(_, this)).toIndexedSeq
+  val tshape = shape.transform(t)
 
-  lazy val tshape = shape.transform(t)
+  val ports = (0 until kind.ports.size).map(Ship.Port(_, this)).toIndexedSeq
 
   def transform(t2: Mat3) = PlacedPiece(t * t2, kind)
 
@@ -247,7 +247,7 @@ object Ship {
     def ~(other: Port) = Connection(this, other)
     override def toString = s"$piece.port($id)"
 
-    lazy val placedPort = piece.tshape.ports(id)
+    val placedPort = piece.tshape.ports(id)
 
     def position = placedPort.position
     def direction = placedPort.direction
