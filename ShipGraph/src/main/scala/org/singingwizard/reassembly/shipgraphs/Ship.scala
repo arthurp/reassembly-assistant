@@ -22,6 +22,13 @@ case class PlacedPiece(t: Mat3, kind: PieceKind) {
   override def toString = s"$kind@${tshape.centroid}"
 
   override lazy val hashCode = t.hashCode ^ kind.hashCode
+  
+  override def equals(o: Any): Boolean = o match {
+    case PlacedPiece(ot, ok) => {
+      t == ot && kind == ok
+    }
+    case _ => false
+  }
 }
 
 abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph: Graph[Port, Edge]) {
@@ -72,8 +79,8 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
           val r = g.flatMap(_.add(pt))
           //println(r)
           r match {
-            case Some(r) ⇒ (Some(r), placed + pt)
-            case None if allowPartial ⇒ (g, placed)
+            case Some(r) ⇒ (Some(r), placed)
+            case None if allowPartial ⇒ (g, placed + pt)
             case None ⇒ (None, placed)
           }
         case Piece(_) | Connection(_, _) ⇒ acc
@@ -82,7 +89,7 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
 
     gOpt match {
       case Some(g) ⇒ (g, placed)
-      case None ⇒ (this, Set())
+      case None ⇒ (this, segment.pieces.map(_.transform(trans)).toSet)
     }
   }
 

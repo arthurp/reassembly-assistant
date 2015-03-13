@@ -1,8 +1,9 @@
 package org.singingwizard.swmath
 
 import scala.math._
+import scala.reflect.ClassTag
 
-abstract class Mat[M <: Mat[M]]() {
+abstract class Mat[M <: Mat[M]: ClassTag]() {
   val size: Int
   val values: Array[Real]
   protected def create(): M
@@ -93,6 +94,32 @@ abstract class Mat[M <: Mat[M]]() {
     }
     sb.toString
   }
+
+  override def equals(o: Any): Boolean = o match {
+    case o: M if size == o.size ⇒
+      for (
+        i ← 0 until size;
+        j ← 0 until size
+      ) {
+        if (this(i, j) != o(i, j)) {
+          return false
+        }
+      }
+      return true
+    case _ ⇒ false
+  }
+  def =~(o: M): Boolean = {
+    for (
+      i ← 0 until size;
+      j ← 0 until size
+    ) {
+      if (!(this(i, j) =~ o(i, j))) {
+        return false
+      }
+    }
+    return true
+  }
+
 }
 
 final class Mat4 private (val values: Array[Real] = new Array[Real](4 * 4)) extends Mat[Mat4] with Serializable {
@@ -262,11 +289,11 @@ object Mat3 {
       0, y, 0,
       0, 0, 1))
   }
-  
+
   def scale(pivot: Vec2, f: Real): Mat3 = {
     new Mat3(Array(
-      f, 0, -pivot.x * (f-1),
-      0, f, -pivot.y * (f-1),
+      f, 0, -pivot.x * (f - 1),
+      0, f, -pivot.y * (f - 1),
       0, 0, 1))
   }
 
@@ -293,11 +320,11 @@ object Mat3 {
     val cost = cos(theta)
     val sint = sin(theta)
     new Mat3(Array(
-      cost, -sint, pivot.x - cost*pivot.x - -sint*pivot.y,
-      sint, cost, pivot.y - sint*pivot.x - cost*pivot.y,
+      cost, -sint, pivot.x - cost * pivot.x - -sint * pivot.y,
+      sint, cost, pivot.y - sint * pivot.x - cost * pivot.y,
       0, 0, 1))
   }
-  
+
   def rotate(pivot: Vec2, from: Vec2, to: Vec2): Mat3 = {
     rotate(pivot, math.atan2(to.y, to.x) - math.atan2(from.y, from.x))
   }

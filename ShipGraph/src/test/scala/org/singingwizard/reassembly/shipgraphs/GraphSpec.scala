@@ -74,6 +74,7 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
       s.validate ==== None
     }
   }
+  
   "A ship segment graph" >> {
     "Empty has no nodes or edges" >> {
       ShipSegment().pieceCount must_== 0
@@ -87,7 +88,7 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
       val Some(seg) = ShipSegment().add(p2)
       val (s3, ps) = s2.attachGet(seg, seg.disconnectedPorts.head, s2.get(p1).ports(1),
           allowPartial=false)
-      ps.size ==== 1
+      ps.size ==== 0
       s3.pieceCount ==== 3
     }
     "We can splice one onto another partial" >> {
@@ -99,26 +100,29 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
       val Some(seg) = ShipSegment().add(p2).flatMap(_.add(p3).flatMap(_.add(p4)))
       val (s3, ps) = s2.attachGet(seg, seg.get(p4).ports(0), s2.get(p1).ports(3),
           allowPartial=true)
-      ps.size ==== 2
+      ps.size ==== 1
       s3.pieceCount ==== 4
     }
     "We can splice one onto another (allow partial)" >> prop { (s1: ShipSegment, s2: ShipSegment) =>
       val (s, ps) = s1.attachGet(s2, Random.uniformElement(s2.disconnectedPorts).get, 
           Random.uniformElement(s1.disconnectedPorts).get, allowPartial=true)
-      if(ps.isEmpty) {
-        s must beTheSameAs(s1)
+      if(s ne s1) {
+        ps.size must be_!=(s2.pieceCount)
+        s.pieceCount ==== s1.pieceCount + s2.pieceCount - ps.size
       } else {
-        s.pieceCount ==== s1.pieceCount + ps.size
+        ps.size ==== s2.pieceCount
       }
       s.validate ==== None
     }
     "We can splice one onto another (disallow partial)" >> prop { (s1: ShipSegment, s2: ShipSegment) =>
-      val (s, ps) = s1.attachGet(s2, Random.uniformElement(s2.disconnectedPorts).get, 
-          Random.uniformElement(s1.disconnectedPorts).get, allowPartial=false)
-      if(ps.isEmpty) {
-        s must beTheSameAs(s1)
-      } else {
+      val p2 = Random.uniformElement(s2.disconnectedPorts).get
+      val p1 = Random.uniformElement(s1.disconnectedPorts).get
+      val (s, ps) = s1.attachGet(s2, p2, p1, allowPartial=false)
+      if(s ne s1) {
+        ps.size ==== 0
         s.pieceCount ==== s1.pieceCount + s2.pieceCount
+      } else {
+        ps.size ==== s2.pieceCount
       }
       s.validate ==== None
     }
