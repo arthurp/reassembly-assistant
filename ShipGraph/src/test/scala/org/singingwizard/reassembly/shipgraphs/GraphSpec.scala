@@ -7,6 +7,7 @@ import org.junit.runner.RunWith
 import org.scalacheck._
 import scalaz._
 import scalax.collection.GraphEdge.EdgeException
+import scala.math.Pi
 
 @RunWith(classOf[JUnitRunner])
 class GraphSpec extends mutable.Specification with ScalaCheck {
@@ -44,6 +45,7 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
     }
   }
   
+  import GraphSpec._
   "A ship graph" >> {
     "Empty has one node" >> {
       Ship().pieceCount must_== 1
@@ -68,8 +70,59 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
       c.isAt(n.ports(0)) ==== true
       c.isAt(s2.core.ports(0)) ==== true
     }
-    import GraphSpec._
     "All spec generated ships are valid" >> prop { (s: Ship) =>
+      s.validate ==== None
+    }
+  }
+  "A ship segment graph" >> {
+    "Empty has no nodes or edges" >> {
+      ShipSegment().pieceCount must_== 0
+      ShipSegment().pieces must have size(0)
+      ShipSegment().connections must have size(0)
+    }
+    "We can splice one onto another full succeed" >> {
+      val s1 = Ship()
+      val (s2, Some(p1)) = s1.attachGet(PieceKinds.squareWeak, 0, s1.core.ports(0))
+      val p2 = PlacedPiece(Mat3.nil, PieceKinds.squareStrong)
+      val Some(seg) = ShipSegment().add(p2)
+      val (s3, ps) = s2.attachGet(seg, seg.disconnectedPorts.head, s2.get(p1).ports(1),
+          allowPartial=false)
+      ps.size ==== 1
+      s3.pieceCount ==== 3
+    }
+    "We can splice one onto another partial" >> {
+      val s1 = Ship()
+      val (s2, Some(p1)) = s1.attachGet(PieceKinds.squareWeak, 0, s1.core.ports(0))
+      val p2 = PlacedPiece(Mat3.nil, PieceKinds.squareStrong)
+      val p3 = PlacedPiece(Mat3.translate(1, 0), PieceKinds.squareStrong)
+      val p4 = PlacedPiece(Mat3.translate(0, 1), PieceKinds.squareStrong)
+      val Some(seg) = ShipSegment().add(p2).flatMap(_.add(p3).flatMap(_.add(p4)))
+      val (s3, ps) = s2.attachGet(seg, seg.get(p4).ports(0), s2.get(p1).ports(3),
+          allowPartial=true)
+      ps.size ==== 2
+      s3.pieceCount ==== 4
+    }
+    "We can splice one onto another (allow partial)" >> prop { (s1: ShipSegment, s2: ShipSegment) =>
+      val (s, ps) = s1.attachGet(s2, Random.uniformElement(s2.disconnectedPorts).get, 
+          Random.uniformElement(s1.disconnectedPorts).get, allowPartial=true)
+      if(ps.isEmpty) {
+        s must beTheSameAs(s1)
+      } else {
+        s.pieceCount ==== s1.pieceCount + ps.size
+      }
+      s.validate ==== None
+    }
+    "We can splice one onto another (disallow partial)" >> prop { (s1: ShipSegment, s2: ShipSegment) =>
+      val (s, ps) = s1.attachGet(s2, Random.uniformElement(s2.disconnectedPorts).get, 
+          Random.uniformElement(s1.disconnectedPorts).get, allowPartial=false)
+      if(ps.isEmpty) {
+        s must beTheSameAs(s1)
+      } else {
+        s.pieceCount ==== s1.pieceCount + s2.pieceCount
+      }
+      s.validate ==== None
+    }
+    "All spec generated ship segments are valid" >> prop { (s: ShipSegment) =>
       s.validate ==== None
     }
   }
@@ -77,6 +130,8 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
 
 
 object GraphSpec {
+  import org.singingwizard.swmath.MatSpec._
+  
   val genShape = Gen.oneOf(
       Shapes.square, 
       Shapes.rightTriangle, 
@@ -103,7 +158,7 @@ object GraphSpec {
       
   
   
-  val genAddNode: Gen[Ship => Gen[Ship]] = for( s <- genPiece; i <- genIndex(s.ports) ) yield { g =>
+  def genAddNode[T <: ShipGraphBase[T]]: Gen[T => Gen[T]] = for( s <- genPiece; i <- genIndex(s.ports) ) yield { g =>
     for ( portb <- Gen.oneOf(g.disconnectedPorts.toSeq) ) yield {
       g.attach(s, i, portb)
     }
@@ -115,4 +170,13 @@ object GraphSpec {
     }
   }
   implicit val arbGraph: Arbitrary[Ship] = Arbitrary(genShip)
+  val genSegment: Gen[ShipSegment] = {
+    Gen.containerOf[Vector, ShipSegment => Gen[ShipSegment]](genAddNode) flatMap { commands =>
+      val g = for (p <- genPiece; pos <- genVec2; r <- Gen.choose(-Pi*2, Pi*2)) yield {
+        ShipSegment().add(PlacedPiece(Mat3.translate(pos) * Mat3.rotate(r), p)).get
+      }
+      commands.foldLeft(g)((s, cmd) => s.flatMap(cmd(_)))
+    }
+  }
+  implicit val arbSegment: Arbitrary[ShipSegment] = Arbitrary(genSegment)
 }

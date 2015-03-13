@@ -1,5 +1,6 @@
 package org.singingwizard.reassembly.shipgraphs
 
+import scala.collection.mutable
 import scalax.collection.immutable.Graph
 import scalax.collection.edge._
 import scalax.collection.GraphEdge._
@@ -8,37 +9,87 @@ import org.singingwizard.swmath.Mat3
 
 import Ship._
 
-case class PlacedPiece(transform: Mat3, kind: PieceKind) {
+case class PlacedPiece(t: Mat3, kind: PieceKind) {
   def overlaps(o: PlacedPiece) = tshape overlaps o.tshape
 
   def shape = kind.shape
   val ports = (0 until kind.ports.size).map(Ship.Port(_, this)).toIndexedSeq
 
-  lazy val tshape = shape.transform(transform)
+  lazy val tshape = shape.transform(t)
+
+  def transform(t2: Mat3) = PlacedPiece(t * t2, kind)
 
   override def toString = s"$kind@${tshape.centroid}"
 
-  override lazy val hashCode = transform.hashCode ^ kind.hashCode
+  override lazy val hashCode = t.hashCode ^ kind.hashCode
 }
 
 abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph: Graph[Port, Edge]) {
-  this: ShipT =>
+  this: ShipT ⇒
+  import Ship._
+
   /**
    * O(pieces.size + ports.size)
    */
   def add(placed: org.singingwizard.reassembly.shipgraphs.PlacedPiece): Option[ShipT] = {
     val geoEdges = findGeometricallyImpliedEdgesFor(placed)
-    if (overlaps(placed) || geoEdges.isEmpty) {
+    if (overlaps(placed) || (!graph.nodes.isEmpty && geoEdges.isEmpty)) {
       None
     } else {
       Some(copy(graph = graph + placed ++ geoEdges))
     }
   }
 
+  def attach(segment: ShipSegment, porta: Port, portb: Port, allowPartial: Boolean = false) = attachGet(segment, porta, portb, allowPartial)._1
+  def attachGet(segment: ShipSegment, porta: Port, portb: Port, allowPartial: Boolean = false): (ShipT, Set[PlacedPiece]) = {
+    assert(segment.ports contains porta)
+    assert(ports contains portb)
+    val portaPlace = porta.placedPort
+    val portbPlace = portb.placedPort
+    val trans = portbPlace.matchingTransform(portaPlace)
+    
+    /*
+    println(porta, portb)
+    println(portaPlace, portbPlace)
+    println(portaPlace.transform(trans), portbPlace)
+    println(this)
+    println(segment)
+    println(trans)
+    */
+
+    import scalax.collection.GraphTraversal._
+    val visitor = segment.graph.get(porta.piece).nodes.head.outerEdgeTraverser.withKind(DepthFirst)
+
+    val visited = mutable.Set[PlacedPiece]()
+    
+    val (gOpt, placed) = visitor.foldLeft[(Option[ShipT], Set[PlacedPiece])]((Some(this), Set())) { (acc, p) ⇒
+      p match {
+        case Piece(p) if !visited.contains(p) ⇒
+          visited += p
+          val (g, placed) = acc
+          val pt = p.transform(trans)
+          //println(s"adding $pt")
+          val r = g.flatMap(_.add(pt))
+          //println(r)
+          r match {
+            case Some(r) ⇒ (Some(r), placed + pt)
+            case None if allowPartial ⇒ (g, placed)
+            case None ⇒ (None, placed)
+          }
+        case Piece(_) | Connection(_, _) ⇒ acc
+      }
+    }
+
+    gOpt match {
+      case Some(g) ⇒ (g, placed)
+      case None ⇒ (this, Set())
+    }
+  }
+
   def attach(p: PieceKind, portaID: Shape.PortID, portb: Port) = attachGet(p, portaID, portb)._1
   def attachGet(p: PieceKind, portaID: Shape.PortID, portb: Port): (ShipT, Option[PlacedPiece]) = {
     val porta = p.shape.ports(portaID)
-    val portbPlace = portb.piece.tshape.ports(portb.id)
+    val portbPlace = portb.placedPort
     val trans = portbPlace.matchingTransform(porta)
     val placed = PlacedPiece(trans, p)
     add(placed) match {
@@ -65,14 +116,14 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
 
   def copy(graph: Graph[Port, Edge]): ShipT
 
-  val prefixString: String 
+  val prefixString: String
   override def toString = {
     s"$prefixString(${pieces.mkString(", ")}; ${connections.mkString(", ")})"
   }
 
-  def get(p: PlacedPiece) = graph.get(p)
+  def get(p: PlacedPiece) = graph.get(p).edge.asInstanceOf[Piece[_]]
   def get(p: Port) = graph.get(p)
-  def get(c: Connection[Port]) = graph.get(c)
+  def get(c: Connection[Port]) = graph.get(c).edge.asInstanceOf[Connection[_]]
   //def get(c: Piece[Port]) = graph.get(c)
 
   def pieces = graph.edges.map(_.edge).collect({ case p: Piece[_] ⇒ p.piece })
@@ -153,8 +204,15 @@ class ShipSegment protected (graph: Graph[Port, Edge])
     extends ShipGraphBase[ShipSegment](graph) {
 
   def copy(graph: Graph[Port, Edge]): ShipSegment = new ShipSegment(graph)
-  
+
   val prefixString = "Segment"
+}
+
+object ShipSegment {
+  def apply(): ShipSegment = {
+    val g = Graph[Port, Edge]()
+    new ShipSegment(g)
+  }
 }
 
 final class Ship protected (graph: Graph[Port, Edge], corePiece: Piece[Port])
@@ -163,7 +221,7 @@ final class Ship protected (graph: Graph[Port, Edge], corePiece: Piece[Port])
   override def copy(graph: Graph[Port, Edge]) = new Ship(graph, corePiece)
 
   val prefixString = "Ship"
-  
+
   object validationShip {
     def missingCore = {
       !(graph contains corePiece)
@@ -177,7 +235,6 @@ final class Ship protected (graph: Graph[Port, Edge], corePiece: Piece[Port])
 }
 
 object Ship {
-
   def apply(): Ship = {
     val core: Piece[Port] = PlacedPiece(Mat3.nil, PieceKinds.core)
     val g = Graph[Port, Edge]() + core

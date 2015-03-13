@@ -7,20 +7,18 @@ import org.singingwizard.swmath._
 import org.junit.runner.RunWith
 import org.scalacheck.Arbitrary
 import org.specs2.matcher.Matcher
+import org.scalacheck.Gen
 
 @RunWith(classOf[JUnitRunner])
 class MatSpec extends mutable.Specification with ScalaCheck {
-  val genVec2 = for {
-    x ← arbitrary[Double]
-    y ← arbitrary[Double]
-  } yield Vec2(x, y)
-  implicit lazy val arbVec2: Arbitrary[Vec2] = Arbitrary(genVec2)
   implicit def extendVecApproxEqual(v: Vec2) = new {
     def ===~(w: Vec2) = {
-      (v.x must beCloseTo(w.x, Epsilons.COMPARE_EPSILON)) and 
-      (v.y must beCloseTo(w.y, Epsilons.COMPARE_EPSILON))
+      (v.x must beCloseTo(w.x, Epsilons.COMPARE_EPSILON)) and
+        (v.y must beCloseTo(w.y, Epsilons.COMPARE_EPSILON))
     }
   }
+
+  import MatSpec._
 
   "Mat3" >> {
     "Mat3 identity" >> prop { (v: Vec2) ⇒
@@ -39,4 +37,12 @@ class MatSpec extends mutable.Specification with ScalaCheck {
       Mat3.rotate(Vec2(1, 0), Vec2(1, 0), Vec2(0, 1)) * Vec2(2, 0) ==== Vec2(1, 1)
     }
   }
+}
+
+object MatSpec {
+  val genVec2 = for {
+    x ← Gen.choose(-1000.0, 1000.0)
+    y ← Gen.choose(-1000.0, 1000.0)
+  } yield Vec2(x, y)
+  implicit lazy val arbVec2: Arbitrary[Vec2] = Arbitrary(genVec2)
 }

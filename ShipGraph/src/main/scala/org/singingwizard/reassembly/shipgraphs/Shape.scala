@@ -4,9 +4,7 @@ import org.singingwizard.swmath._
 import org.singingwizard.SlidingPairsWrapping._
 import scala.reflect.ClassTag
 
-final class PortPlacement(val position: Vec2, val direction: Vec2) {
-  assert(direction.length2 =~ 1)
-  
+final class PortPlacement(val position: Vec2, val direction: Vec2) {  
   /**
    * Compute the transform that will move/rotate o to connect with this (based on position and direction of both)
    */

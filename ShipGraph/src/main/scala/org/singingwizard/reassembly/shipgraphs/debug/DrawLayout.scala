@@ -16,6 +16,9 @@ import javax.swing.SwingUtilities
 import javax.swing.Timer
 import java.awt.event.ActionListener
 import java.awt.event.ActionEvent
+import java.awt.geom.Path2D
+import org.singingwizard.SlidingPairsWrapping._
+import java.awt.Color
 
 class LayoutDisplayPanel(private var glayout_ : Ship) extends JPanel {
   setPreferredSize(new Dimension(600, 600))
@@ -29,27 +32,34 @@ class LayoutDisplayPanel(private var glayout_ : Ship) extends JPanel {
   }
 
   def drawLayout(layout: Ship)(implicit g: Graphics2D) = {
-    g.translate(150, 150)
-    g.scale(30, 30)
+    g.translate(500, 500)
+    g.scale(10, 10)
     g.setStroke(new BasicStroke(0.02f))
-    g.draw(new Ellipse2D.Double(-0.05, -0.05, 0.1, 0.1))
     for (p ← layout.pieces)
       drawPlacedShape(p)
+    g.draw(new Ellipse2D.Double(-0.05, -0.05, 0.1, 0.1))
   }
 
   def drawPlacedShape(shape: PlacedPiece)(implicit g: Graphics2D) = {
     import DrawLayout._
     val saveAT = g.getTransform()
     //println(s"Transform:\n${shape.transform}")
-    g.transform(shape.transform)
+    g.transform(shape.t)
     drawShape(shape.shape)
     g.setTransform(saveAT)
   }
 
   def drawShape(shape: Shape)(implicit g: Graphics2D) = {
-    for ((v1, v2) ← shape.lines) {
-      drawLine(v1, v2)
-    }
+    val poly = new Path2D.Double()
+    poly.moveTo(shape.vertices.last.x, shape.vertices.last.y)
+    for (v ← shape.vertices) {
+      poly.lineTo(v.x, v.y)
+    }    
+    val oldC = g.getColor()
+    g.setColor(Color.white)
+    g.fill(poly)
+    g.setColor(oldC)
+    g.draw(poly)
     for (PortPlacement(pos, dir) ← shape.ports) {
       drawLine(pos, pos - (dir * 0.1))
     }
@@ -87,7 +97,7 @@ object DrawLayout {
         frame.pack()
         frame.setVisible(true)
 
-        val timer = new Timer(5000, new ActionListener() {
+        val timer = new Timer(10, new ActionListener() {
           def actionPerformed(e: ActionEvent) = {
             display.glayout = makeLayout()
             frame.repaint()

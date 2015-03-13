@@ -7,8 +7,6 @@ import org.junit.runner.RunWith
 
 @RunWith(classOf[JUnitRunner])
 class ShapeSpec extends mutable.Specification {
-  sequential
-  
   "Shape.overlaps" >> {
     "Overlaps self" >> {
       (Shapes.square overlaps Shapes.square) ==== true
