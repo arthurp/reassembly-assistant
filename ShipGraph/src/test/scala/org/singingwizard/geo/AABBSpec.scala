@@ -26,12 +26,17 @@ class AABBSpec extends mutable.Specification with ScalaCheck {
         (b containsEpsilon v) ==== true
         (b overlaps AABB2(v)) ==== true
       }
-      
+
       // TODO: This is ugly and kinda unsound, but I don't know how else to do it at the moment.
       val vs2 = Gen.someOf(vs).sample.get.toSet + Gen.oneOf(vs.toSeq).sample.get
-      
-      (b overlaps AABB2(vs2)) ==== true
-      
+
+      val b2 = AABB2(vs2)
+      (b overlaps b2) ==== true
+      (b contains b2.maximum) ==== true
+      (b contains b2.minimum) ==== true
+      (b contains b2.maxXminY) ==== true
+      (b contains b2.minXmaxY) ==== true
+
       (b overlaps b) ==== true
     }
   }
