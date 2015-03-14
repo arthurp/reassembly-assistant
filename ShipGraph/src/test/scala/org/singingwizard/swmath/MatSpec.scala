@@ -40,9 +40,14 @@ class MatSpec extends mutable.Specification with ScalaCheck {
 }
 
 object MatSpec {
-  val genVec2 = for {
+  val genVec2Double = for {
     x ← Gen.choose(-1000.0, 1000.0)
     y ← Gen.choose(-1000.0, 1000.0)
   } yield Vec2(x, y)
+  val genVec2Int = for {
+    x ← Gen.choose(-1000, 1000)
+    y ← Gen.choose(-1000, 1000)
+  } yield Vec2(x, y)
+  val genVec2 = Gen.oneOf(genVec2Double, genVec2Int)
   implicit lazy val arbVec2: Arbitrary[Vec2] = Arbitrary(genVec2)
 }

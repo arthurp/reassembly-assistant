@@ -18,17 +18,15 @@ class AABBSpec extends mutable.Specification with ScalaCheck {
     (b.maximum) ==== v
     (b.minimum) ==== v
   }
-  "Various sets" >> prop { (vs: Set[Vec2]) ⇒
-    !vs.isEmpty ==> {
+  "Various sets" >> (prop { (values: (Set[Vec2], Set[Vec2])) ⇒
+    val (vs, vs2) = values 
+    (!vs.isEmpty && !vs2.isEmpty) ==> {
       val b = AABB2(vs)
       for (v ← vs) {
         (b contains v) ==== true
         (b containsEpsilon v) ==== true
         (b overlaps AABB2(v)) ==== true
       }
-
-      // TODO: This is ugly and kinda unsound, but I don't know how else to do it at the moment.
-      val vs2 = Gen.someOf(vs).sample.get.toSet + Gen.oneOf(vs.toSeq).sample.get
 
       val b2 = AABB2(vs2)
       (b overlaps b2) ==== true
@@ -39,5 +37,7 @@ class AABBSpec extends mutable.Specification with ScalaCheck {
 
       (b overlaps b) ==== true
     }
-  }
+  }).setArbitrary(Arbitrary {
+    for (vs <- Gen.containerOf[Set, Vec2](genVec2); vs2 <- Gen.someOf(vs)) yield (vs, vs2.toSet)
+  }).collect
 }

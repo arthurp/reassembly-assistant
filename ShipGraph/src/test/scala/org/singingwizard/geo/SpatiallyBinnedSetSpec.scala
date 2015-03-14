@@ -47,11 +47,15 @@ class SpatiallyBinnedSetSpec extends mutable.Specification with ScalaCheck {
     s(d) ==== Set(a, d)
     s(e) ==== Set(a, e)
   }
-  "Various sets" >> prop { (vs: Set[Vec2]) => 
-    val s = SpatiallyBinnedSet2[Vec2](Vec2(10, 10), 6) ++ vs.map(v => v -> v)
+  "Various sets" >> (prop { (vs: Set[Vec2]) => 
+    val s = SpatiallyBinnedSet2[Vec2](Vec2(5, 5), 5) ++ vs.map(v => v -> v)
     for (v <- vs) {
       s(v) must contain(v)
+      s(v + SpatiallyBinnedSet2.epsilonVec1/2) must contain(v)
+      s(v - SpatiallyBinnedSet2.epsilonVec1/2) must contain(v)
+      s(v + SpatiallyBinnedSet2.epsilonVec2/2) must contain(v)
+      s(v - SpatiallyBinnedSet2.epsilonVec2/2) must contain(v)
     }
     s.size ==== vs.size
-  }
+  })
 }
