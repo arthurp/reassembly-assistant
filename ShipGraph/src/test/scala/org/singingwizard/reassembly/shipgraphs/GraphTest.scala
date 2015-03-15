@@ -8,19 +8,12 @@ import org.singingwizard.swmath.Random
 
 object GraphTest extends App {
   import Ship._
-  
-  if (false) {
-    for(i <- 0 until 10000) {
-      GraphSpec.genShip.sample
-      println(i)
-    }
-  } else {
-    var g = GraphSpec.genShip.sample.get
-    DrawLayout.showMany { () ⇒
-      val s = GraphSpec.genSegment.sample.get
-      g = g.attach(s, Random.uniformElement(s.disconnectedPorts).get,
-          Random.uniformElement(g.disconnectedPorts).get, allowPartial=true)
-      g
-    }
+
+  var g = GraphSpec.genShip.sample.get
+  DrawLayout.showMany { () ⇒
+    val s = GraphSpec.genSegment.sample.get
+    g = g.attach(s, Random.uniformElement(s.disconnectedPorts).get,
+      Random.uniformElement(g.disconnectedPorts).get, allowPartial = true)
+    g
   }
 }

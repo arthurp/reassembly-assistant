@@ -4,6 +4,18 @@ import scala.collection.AbstractIterator
 
 object Utils {
   def getTime() = System.nanoTime() / 1000000000.0
+
+  def time[A](a: ⇒ A) = {
+    val now = getTime()
+    val result = a
+    val secs = getTime() - now
+    (result, secs)
+  }
+  def timePrint[A](a: ⇒ A) = {
+    val (r, secs) = time(a)
+      println("%f milliseconds".format(secs * 1000))
+    (r, secs)
+  }
 }
 
 object SlidingPairsWrapping {

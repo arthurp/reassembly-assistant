@@ -11,7 +11,7 @@ import scala.math.Pi
 class SpatiallyBinnedSetSpec extends mutable.Specification with ScalaCheck {
   import MatSpec._
   "empty SpatiallyBinnedSet2" >> {
-    val s = SpatiallyBinnedSet2[Vec2](Vec2(10, 10), 4)
+    val s = SpatiallyBinnedSet2[Vec2](Vec2(10, 10), 4, x => x)
     s.values ==== Set()
     prop { (p: Vec2) =>
       s(p) ==== Set()
@@ -19,7 +19,7 @@ class SpatiallyBinnedSetSpec extends mutable.Specification with ScalaCheck {
   }
   "Should bin grid correctly" >> {
     val (a, b, c) = (Vec2(1, 1), Vec2(3, 3), Vec2(-1, 2))
-    val s = (SpatiallyBinnedSet2[Vec2](Vec2(10, 10), 4) + 
+    val s = (SpatiallyBinnedSet2[Vec2](Vec2(10, 10), 4, x => x) + 
         (a -> a) + 
         (b -> b) + 
         (c -> c))
@@ -34,7 +34,7 @@ class SpatiallyBinnedSetSpec extends mutable.Specification with ScalaCheck {
   }
   "Should bin boundries in multiple bins" >> {
     val (a, b, c, d, e) = (Vec2(0, 0), Vec2(1, 1), Vec2(-1, 2), Vec2(1, -2), Vec2(-1, -0.5))
-    val s = (SpatiallyBinnedSet2[Vec2](Vec2(10, 10), 4) + 
+    val s = (SpatiallyBinnedSet2[Vec2](Vec2(10, 10), 4, x => x) + 
         (a -> a) + 
         (b -> b) + 
         (c -> c) +
@@ -48,7 +48,7 @@ class SpatiallyBinnedSetSpec extends mutable.Specification with ScalaCheck {
     s(e) ==== Set(a, e)
   }
   "Various sets" >> (prop { (vs: Set[Vec2]) => 
-    val s = SpatiallyBinnedSet2[Vec2](Vec2(5, 5), 5) ++ vs.map(v => v -> v)
+    val s = SpatiallyBinnedSet2[Vec2](Vec2(5, 5), 5, x => x) ++ vs.map(v => v -> v)
     for (v <- vs) {
       s(v) must contain(v)
       s(v + SpatiallyBinnedSet2.epsilonVec1/2) must contain(v)

@@ -6,8 +6,16 @@ import scalax.collection.edge._
 import scalax.collection.GraphEdge._
 import scalax.collection.GraphPredef._
 import org.singingwizard.swmath.Mat3
-
 import Ship._
+import org.singingwizard.geo.SpatiallyBinnedSet2
+import org.singingwizard.swmath.Vec2
+
+object SpatiallyBinnedPortSet {
+  def apply(size: Int) = {
+    val range = Vec2(size * 1.5, size * 1.5)
+    SpatiallyBinnedSet2[Port](range, size, _.position)
+  }
+}
 
 case class PlacedPiece(t: Mat3, kind: PieceKind) {
   def overlaps(o: PlacedPiece) = tshape overlaps o.tshape
@@ -22,16 +30,16 @@ case class PlacedPiece(t: Mat3, kind: PieceKind) {
   override def toString = s"$kind@${tshape.centroid}"
 
   override lazy val hashCode = t.hashCode ^ kind.hashCode
-  
+
   override def equals(o: Any): Boolean = o match {
-    case PlacedPiece(ot, ok) => {
+    case PlacedPiece(ot, ok) ⇒ {
       t == ot && kind == ok
     }
-    case _ => false
+    case _ ⇒ false
   }
 }
 
-abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph: Graph[Port, Edge]) {
+abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph: Graph[Port, Edge], val ports: SpatiallyBinnedSet2[Port]) {
   this: ShipT ⇒
   import Ship._
 
@@ -43,7 +51,7 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
     if (overlaps(placed) || (!graph.nodes.isEmpty && geoEdges.isEmpty)) {
       None
     } else {
-      Some(copy(graph = graph + placed ++ geoEdges))
+      Some(copy(graph = graph + placed ++ geoEdges, ports = ports addValues placed.ports))
     }
   }
 
@@ -54,7 +62,7 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
     val portaPlace = porta.placedPort
     val portbPlace = portb.placedPort
     val trans = portbPlace.matchingTransform(portaPlace)
-    
+
     /*
     println(porta, portb)
     println(portaPlace, portbPlace)
@@ -68,7 +76,7 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
     val visitor = segment.graph.get(porta.piece).nodes.head.outerEdgeTraverser.withKind(DepthFirst)
 
     val visited = mutable.Set[PlacedPiece]()
-    
+
     val (gOpt, placed) = visitor.foldLeft[(Option[ShipT], Set[PlacedPiece])]((Some(this), Set())) { (acc, p) ⇒
       p match {
         case Piece(p) if !visited.contains(p) ⇒
@@ -115,13 +123,13 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
    */
   def findGeometricallyImpliedEdgesFor(p: PlacedPiece) = {
     for {
-      pr ← ports
+      pr ← ports(p.ports.map(_.position))
       pp ← p.ports
       if pr.position =~ pp.position
     } yield pp ~ pr
   }
 
-  def copy(graph: Graph[Port, Edge]): ShipT
+  def copy(graph: Graph[Port, Edge], ports: SpatiallyBinnedSet2[Port]): ShipT
 
   val prefixString: String
   override def toString = {
@@ -134,8 +142,10 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
   //def get(c: Piece[Port]) = graph.get(c)
 
   def pieces = graph.edges.map(_.edge).collect({ case p: Piece[_] ⇒ p.piece })
+  def piecesAt(p: Vec2) = ports(p).map(_.piece)
+  def piecesAt(ps: TraversableOnce[Vec2]) = ports(ps).map(_.piece)
+  
   def connections = graph.edges.map(_.edge).collect({ case c: Connection[_] ⇒ c })
-  def ports = graph.nodes.map(_.value)
 
   def disconnectedPorts = graph.nodes.filter(_.edges.size == 1).map(_.value)
 
@@ -195,6 +205,15 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
         }
       }
     }
+
+    def hasMismatchedPortsAndGraph = {
+      (graph.nodes exists { n ⇒
+        !(ports contains n.value)
+      }) ||
+      (ports.values exists { n ⇒
+        !(graph contains n)
+      })
+    }
   }
 
   def validate() = {
@@ -203,14 +222,15 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
     else if (validation.hasMissingGeometricEdge) Some("Graph contains touching ports that are not connected by an edge")
     else if (validation.hasInvalidPieceEdge) Some("Graph contains a piece edge which is not valid w.r.t. it's Piece")
     else if (validation.hasInvalidConnection) Some("Graph contains a connection which is not valid (ports not aligned)")
+    else if (validation.hasMismatchedPortsAndGraph) Some(s"The binned ports set and the graph nodes are not the same: ${graph.nodes.toOuterNodes.toSet} != ${ports.values}")
     else None
   }
 }
 
-class ShipSegment protected (graph: Graph[Port, Edge])
-    extends ShipGraphBase[ShipSegment](graph) {
+class ShipSegment protected (graph: Graph[Port, Edge], ports: SpatiallyBinnedSet2[Port])
+    extends ShipGraphBase[ShipSegment](graph, ports) {
 
-  def copy(graph: Graph[Port, Edge]): ShipSegment = new ShipSegment(graph)
+  def copy(graph: Graph[Port, Edge], ports: SpatiallyBinnedSet2[Port]): ShipSegment = new ShipSegment(graph, ports)
 
   val prefixString = "Segment"
 }
@@ -218,14 +238,14 @@ class ShipSegment protected (graph: Graph[Port, Edge])
 object ShipSegment {
   def apply(): ShipSegment = {
     val g = Graph[Port, Edge]()
-    new ShipSegment(g)
+    new ShipSegment(g, SpatiallyBinnedPortSet(6))
   }
 }
 
-final class Ship protected (graph: Graph[Port, Edge], corePiece: Piece[Port])
-    extends ShipGraphBase[Ship](graph) {
+final class Ship protected (graph: Graph[Port, Edge], ports: SpatiallyBinnedSet2[Port], corePiece: Piece[Port])
+    extends ShipGraphBase[Ship](graph, ports) {
   def core = corePiece.piece
-  override def copy(graph: Graph[Port, Edge]) = new Ship(graph, corePiece)
+  override def copy(graph: Graph[Port, Edge], ports: SpatiallyBinnedSet2[Port]) = new Ship(graph, ports, corePiece)
 
   val prefixString = "Ship"
 
@@ -245,7 +265,8 @@ object Ship {
   def apply(): Ship = {
     val core: Piece[Port] = PlacedPiece(Mat3.nil, PieceKinds.core)
     val g = Graph[Port, Edge]() + core
-    new Ship(g, core)
+    val ps = SpatiallyBinnedPortSet(6) addValues core.ports
+    new Ship(g, ps, core)
   }
 
   import scala.language.implicitConversions

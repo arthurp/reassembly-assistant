@@ -151,7 +151,7 @@ object GraphSpec {
   val genSmallNum = Gen.choose(1, 100)
   def genIndex(e: Traversable[_]) = Gen.choose(0, e.size-1)
   
-  val curratedBlockSelection = false
+  val curratedBlockSelection = true
   
   val genPiece = {
     if (curratedBlockSelection)
