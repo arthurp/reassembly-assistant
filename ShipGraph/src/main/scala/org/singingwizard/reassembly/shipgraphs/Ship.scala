@@ -9,19 +9,23 @@ import org.singingwizard.swmath.Mat3
 import Ship._
 import org.singingwizard.geo.SpatiallyBinnedSet2
 import org.singingwizard.swmath.Vec2
+import org.singingwizard.geo.AABB2
 
 object SpatiallyBinnedPortSet {
-  def apply(size: Int) = {
-    val range = Vec2(size * 1.5, size * 1.5)
+  def apply(size: Int): SpatiallyBinnedSet2[Port] = {
+    val range = Vec2(size * 1.9, size * 1.9)
     SpatiallyBinnedSet2[Port](range, size, _.position)
   }
+  def apply(): SpatiallyBinnedSet2[Port] = this(11)
 }
 
 case class PlacedPiece(t: Mat3, kind: PieceKind) {
-  def overlaps(o: PlacedPiece) = tshape overlaps o.tshape
+  def overlaps(o: PlacedPiece) = (boundingbox overlaps o.boundingbox) && (tshape overlaps o.tshape)
 
   def shape = kind.shape
   val tshape = shape.transform(t)
+  
+  val boundingbox = AABB2(tshape.vertices)
 
   val ports = (0 until kind.ports.size).map(Ship.Port(_, this)).toIndexedSeq
 
@@ -57,8 +61,8 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
 
   def attach(segment: ShipSegment, porta: Port, portb: Port, allowPartial: Boolean = false) = attachGet(segment, porta, portb, allowPartial)._1
   def attachGet(segment: ShipSegment, porta: Port, portb: Port, allowPartial: Boolean = false): (ShipT, Set[PlacedPiece]) = {
-    assert(segment.ports contains porta)
-    assert(ports contains portb)
+    require(segment.ports contains porta)
+    require(ports contains portb)
     val portaPlace = porta.placedPort
     val portbPlace = portb.placedPort
     val trans = portbPlace.matchingTransform(portaPlace)
@@ -113,18 +117,27 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
     }
   }
 
+  var overlapChecks = 0
+  var portAlignmentChecks = 0
+
   /**
    * O(pieces.size)
    */
-  def overlaps(p: PlacedPiece) = pieces.exists(_.overlaps(p))
+  def overlaps(p: PlacedPiece) = {
+    // TODO: Actually select only near by pieces. This will require some sort of search structure for pieces not points.
+    val nearPieces = pieces 
+    //overlapChecks += nearPieces.size
+    nearPieces.exists(_.overlaps(p))
+  }
 
   /**
    * O(ports.size)
    */
   def findGeometricallyImpliedEdgesFor(p: PlacedPiece) = {
     for {
-      pr ← ports(p.ports.map(_.position))
       pp ← p.ports
+      pr ← ports(pp.position) 
+      //_ <- Some(portAlignmentChecks += 1)
       if pr.position =~ pp.position
     } yield pp ~ pr
   }
@@ -142,10 +155,9 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
   //def get(c: Piece[Port]) = graph.get(c)
 
   def pieces = graph.edges.map(_.edge).collect({ case p: Piece[_] ⇒ p.piece })
-  def piecesAt(p: Vec2) = ports(p).map(_.piece)
-  def piecesAt(ps: TraversableOnce[Vec2]) = ports(ps).map(_.piece)
-  
+
   def connections = graph.edges.map(_.edge).collect({ case c: Connection[_] ⇒ c })
+  //def graphPorts = graph.nodes.toOuter
 
   def disconnectedPorts = graph.nodes.filter(_.edges.size == 1).map(_.value)
 
@@ -210,15 +222,30 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
       (graph.nodes exists { n ⇒
         !(ports contains n.value)
       }) ||
-      (ports.values exists { n ⇒
-        !(graph contains n)
-      })
+        (ports.values exists { n ⇒
+          !(graph contains n)
+        })
     }
   }
 
   def validate() = {
-    if (validation.hasOverlaps) Some("Graph contains overlapping pieces")
-    else if (validation.hasUnconnected) Some("Graph contains has pieces that are not connected to the core")
+    if (validation.hasOverlaps) {
+      var overlappingPair: (PlacedPiece, PlacedPiece) = null
+      pieces.tails exists { ps ⇒
+        if (ps.isEmpty) {
+          false
+        } else {
+          val p = ps.head
+          val rest = ps.tail
+          rest.exists { r ⇒
+            overlappingPair = (r, p)
+            r.overlaps(p)
+          }
+        }
+      }
+      val (r, p) = overlappingPair
+      Some(s"Graph contains overlapping pieces: $r ${r.t}; $p ${p.t}")
+    } else if (validation.hasUnconnected) Some("Graph contains has pieces that are not connected to the core")
     else if (validation.hasMissingGeometricEdge) Some("Graph contains touching ports that are not connected by an edge")
     else if (validation.hasInvalidPieceEdge) Some("Graph contains a piece edge which is not valid w.r.t. it's Piece")
     else if (validation.hasInvalidConnection) Some("Graph contains a connection which is not valid (ports not aligned)")
@@ -238,7 +265,7 @@ class ShipSegment protected (graph: Graph[Port, Edge], ports: SpatiallyBinnedSet
 object ShipSegment {
   def apply(): ShipSegment = {
     val g = Graph[Port, Edge]()
-    new ShipSegment(g, SpatiallyBinnedPortSet(6))
+    new ShipSegment(g, SpatiallyBinnedPortSet())
   }
 }
 
@@ -265,7 +292,7 @@ object Ship {
   def apply(): Ship = {
     val core: Piece[Port] = PlacedPiece(Mat3.nil, PieceKinds.core)
     val g = Graph[Port, Edge]() + core
-    val ps = SpatiallyBinnedPortSet(6) addValues core.ports
+    val ps = SpatiallyBinnedPortSet() addValues core.ports
     new Ship(g, ps, core)
   }
 

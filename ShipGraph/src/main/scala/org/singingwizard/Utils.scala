@@ -11,9 +11,9 @@ object Utils {
     val secs = getTime() - now
     (result, secs)
   }
-  def timePrint[A](a: ⇒ A) = {
+  def timePrint[A](name: String)(a: ⇒ A) = {
     val (r, secs) = time(a)
-      println("%f milliseconds".format(secs * 1000))
+      println(s"$name: ${"%.4f".format(secs)} seconds")
     (r, secs)
   }
 }

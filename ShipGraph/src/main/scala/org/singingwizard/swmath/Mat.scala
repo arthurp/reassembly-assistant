@@ -263,6 +263,11 @@ final class Mat3 private[swmath] (val values: Array[Real] = new Array[Real](3 * 
 }
 
 object Mat3 {
+  def apply(m00: Real, m01: Real, m02: Real, m10: Real, m11: Real, m12: Real) = 
+    new Mat3(Array(
+      m00, m01, m02,
+      m10, m11, m12,
+      0, 0, 1))
   def translate(t: Vec2) = {
     new Mat3(Array(
       1, 0, t.x,

@@ -58,4 +58,15 @@ class SpatiallyBinnedSetSpec extends mutable.Specification with ScalaCheck {
     }
     s.size ==== vs.size
   })
+  "Bounding box extraction" >> (prop { (vs: Set[Vec2]) => 
+    val s = SpatiallyBinnedSet2[Vec2](Vec2(500, 500), 10, x => x) ++ vs.map(v => v -> v)
+    for (vs <- vs.sliding(3)) {
+      val bb = AABB2(vs)
+      val subset = s(bb)
+      for (v <- s.values if bb contains v) {
+        subset must contain(v)
+      }
+    }
+    s.size ==== vs.size
+  })
 }

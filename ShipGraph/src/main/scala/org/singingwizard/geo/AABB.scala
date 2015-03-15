@@ -18,33 +18,40 @@ final class AABB2 private (
 
   @inline
   def containsEpsilon(p: Vec2) = {
-    p.x >= minimum_x-COMPARE_EPSILON && p.x <= maximum_x+COMPARE_EPSILON &&
-      p.y >= minimum_y-COMPARE_EPSILON && p.y <= maximum_y+COMPARE_EPSILON
+    p.x >= minimum_x - COMPARE_EPSILON && p.x <= maximum_x + COMPARE_EPSILON &&
+      p.y >= minimum_y - COMPARE_EPSILON && p.y <= maximum_y + COMPARE_EPSILON
   }
 
   def overlaps(o: AABB2) = {
     (this contains o.minimum) ||
-    (this contains o.maximum) ||
-    (this contains o.minXmaxY) ||
-    (this contains o.maxXminY) ||
-    (o contains minimum) ||
-    (o contains maximum) ||
-    (o contains minXmaxY) ||
-    (o contains maxXminY)
+      (this contains o.maximum) ||
+      (this contains o.minXmaxY) ||
+      (this contains o.maxXminY) ||
+      (o contains minimum) ||
+      (o contains maximum) ||
+      (o contains minXmaxY) ||
+      (o contains maxXminY)
   }
-  
+
+  def width = maximum_x - minimum_x
+  def height = maximum_y - minimum_y
+
   def minimum = Vec2(minimum_x, minimum_y)
   def maximum = Vec2(maximum_x, maximum_y)
   def minXmaxY = Vec2(minimum_x, maximum_y)
   def maxXminY = Vec2(maximum_x, minimum_y)
-  
+
   def +(v: Vec2) = {
-    new AABB2(minimum_x min v.x, minimum_y min v.y, 
-        maximum_x max v.x, maximum_y max v.y)
+    new AABB2(minimum_x min v.x, minimum_y min v.y,
+      maximum_x max v.x, maximum_y max v.y)
   }
   def +(o: AABB2) = {
-    new AABB2(minimum_x min o.minimum_x, minimum_y min o.minimum_y, 
-        maximum_x max o.maximum_x, maximum_y max o.maximum_y)
+    new AABB2(minimum_x min o.minimum_x, minimum_y min o.minimum_y,
+      maximum_x max o.maximum_x, maximum_y max o.maximum_y)
+  }
+  
+  override def toString = {
+    s"AABB($minimum, $maximum)"
   }
 }
 
