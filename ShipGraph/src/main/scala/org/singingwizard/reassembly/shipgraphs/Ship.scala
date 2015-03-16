@@ -199,8 +199,8 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
     def hasInvalidPieceEdge = {
       graph.edges exists { edge ⇒
         edge.edge match {
-          case edge @ Piece(piece) ⇒ {
-            val b = (edge.ports.exists(_.piece != piece) ||
+          case Piece(piece) ⇒ {
+            val b = (piece.ports.exists(_.piece != piece) ||
               piece.ports.map(_.id).toSeq.sorted != (0 until piece.shape.ports.size).toSeq)
             b
           }
@@ -348,13 +348,19 @@ object Ship {
   }
   object Piece {
     def apply(piece: PlacedPiece) = new Piece[Port](buildNodesFromShape(piece), piece)
-    def unapply(e: Piece[_]): Option[PlacedPiece] =
-      if (e eq null) None else Some(e.piece)
+    def unapply(e: AnyRef): Option[PlacedPiece] = e match {
+      case e: Piece[_] => Some(e.piece)
+      case e: Graph[Port, Edge]#InnerEdge => e.edge match {
+        case Piece(p) => Some(p)
+        case _ => None
+      }
+      case _ => None
+    }
   }
   implicit def PieceConvert(piece: PlacedPiece): Piece[Port] = Piece(piece)
 
   class Connection[N](_nodes: Product)
-      extends Edge[N](_nodes, Long.MaxValue)
+      extends Edge[N](_nodes, 0)
       with EdgeCopy[Connection]
       with OuterEdge[N, Connection] {
     def isValidLoopBack = portFromNode(this._1).piece != portFromNode(this._2).piece
@@ -371,7 +377,13 @@ object Ship {
   }
   object Connection {
     def apply(a: Port, b: Port) = new Connection[Port](NodeProduct(a, b))
-    def unapply[A <: Port](e: Connection[A]): Option[(Port, Port)] =
-      if (e eq null) None else Some((portFromNode(e._1), portFromNode(e._2)))
+    def unapply(e: AnyRef): Option[(Port, Port)] = e match {
+      case e: Connection[_] => Some((portFromNode(e._1), portFromNode(e._2)))
+      case e: Graph[Port, Edge]#InnerEdge => e.edge match {
+        case Connection(a, b) => Some((a, b))
+        case _ => None
+      }
+      case _ => None
+    }
   }
 }
