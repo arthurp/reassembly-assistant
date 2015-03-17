@@ -57,6 +57,17 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
       s2.pieceCount must_== 2
       s2.pieces must have size (2)
     }
+    "Removing an attaching node leaves only nodes on the core side" >> {
+      val s = (1 until 3).foldLeft(Ship()) { (s, j) ⇒
+        val t = Mat3.translate(j, 0)
+        val p = PlacedPiece(t, PieceKinds.squareWeak)
+        s.add(p).get
+      }
+      s.pieceCount must_== 3
+      val s1 = s.remove(s.pieces.find(_.tshape.centroid =~ Vec2(1, 0)).get)
+      s1.pieceCount must_== 1
+      s1.validate() must_== None
+    }
     "should fail to add long peice overlapping with other piece" >> {
       val s1 = Ship()
       s1.overlaps(PlacedPiece(Mat3.scale(8, 8), PieceKinds.squareWeak)) must be_==(true)
@@ -88,9 +99,12 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
       c.isAt(n.ports(0)) ==== true
       c.isAt(s2.core.ports(0)) ==== true
     }
-    "All spec generated ships are valid" >> prop { (s: Ship) ⇒
+    "All spec generated ships are valid (incl after edits)" >> (prop { (s: Ship, pieceKind: PieceKind, portID: Int) ⇒
       s.validate ==== None
-    }
+      val ports = s.ports.toIndexedSeq
+      s.attach(pieceKind, 0, ports(portID % ports.size)).validate ==== None
+      s.remove(ports(portID % ports.size).piece).validate ==== None
+    }).setArbitrary3(Arbitrary(Gen.posNum[Int]))
   }
 
   "A ship segment graph" >> {
@@ -168,7 +182,7 @@ object GraphSpec {
   val genSmallNum = Gen.choose(1, 100)
   def genIndex(e: Traversable[_]) = Gen.choose(0, e.size - 1)
 
-  val curratedBlockSelection = true
+  val curratedBlockSelection = false
 
   val genPiece = {
     if (curratedBlockSelection)
@@ -176,21 +190,30 @@ object GraphSpec {
     else
       for (m ← genSmallNum; n ← genSmallNum; s ← genShape) yield PieceKind(s, m, n)
   }
+  implicit val arbPiece: Arbitrary[PieceKind] = Arbitrary(genPiece)
 
   def genAddNode[T <: ShipGraphBase[T]]: Gen[T ⇒ Gen[T]] = for (s ← genPiece; i ← genIndex(s.ports)) yield { g ⇒
     for (portb ← Gen.oneOf(g.disconnectedPorts.toSeq)) yield {
       g.attach(s, i, portb)
     }
   }
+  
+  def genAddNodeMaybeOnSamePort[T <: ShipGraphBase[T]]: Gen[T ⇒ Gen[T]] = for (s ← genPiece; i ← genIndex(s.ports)) yield { g ⇒
+    for (portb ← Gen.oneOf(g.ports.toSeq)) yield {
+      g.attach(s, i, portb)
+    }
+  }
+  
+  def genCommand[T <: ShipGraphBase[T]]: Gen[T ⇒ Gen[T]] = Gen.oneOf(genAddNode[T], genAddNodeMaybeOnSamePort[T])
 
   val genShip: Gen[Ship] = {
-    Gen.containerOf[Vector, Ship ⇒ Gen[Ship]](genAddNode) flatMap { commands ⇒
+    Gen.containerOf[Vector, Ship ⇒ Gen[Ship]](genCommand) flatMap { commands ⇒
       commands.foldLeft(Gen.const(Ship()))((s, cmd) ⇒ s.flatMap(cmd(_)))
     }
   }
   implicit val arbGraph: Arbitrary[Ship] = Arbitrary(genShip)
   val genSegment: Gen[ShipSegment] = {
-    Gen.containerOf[Vector, ShipSegment ⇒ Gen[ShipSegment]](genAddNode) flatMap { commands ⇒
+    Gen.containerOf[Vector, ShipSegment ⇒ Gen[ShipSegment]](genCommand) flatMap { commands ⇒
       val g = for (p ← genPiece; pos ← genVec2; r ← Gen.choose(-Pi * 2, Pi * 2)) yield {
         ShipSegment().add(PlacedPiece(Mat3.translate(pos) * Mat3.rotate(r), p)).get
       }

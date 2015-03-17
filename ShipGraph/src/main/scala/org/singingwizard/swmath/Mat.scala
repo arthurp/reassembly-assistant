@@ -95,7 +95,18 @@ abstract class Mat[M <: Mat[M]: ClassTag]() {
     sb.toString
   }
 
+  override def hashCode(): Int = {
+    var h: Int = 0
+    for (
+      i ← 0 until size;
+      j ← 0 until size
+    ) {
+      h = h * 23 + this(i, j).hashCode
+    }
+    h
+  }
   override def equals(o: Any): Boolean = o match {
+    case o: AnyRef if o eq this => true
     case o: M if size == o.size ⇒
       for (
         i ← 0 until size;
@@ -260,10 +271,24 @@ final class Mat3 private[swmath] (val values: Array[Real] = new Array[Real](3 * 
     Vec2(values(0) * p(0) + values(1) * p(1),
       values(3) * p(0) + values(4) * p(1))
   }
+
+  override def equals(o: Any): Boolean = o match {
+    case o: Mat3 if o eq this => true
+    case o: Mat3 ⇒
+      for (
+        i ← 0 until size*size
+      ) {
+        if (this.values(i) != o.values(i)) {
+          return false
+        }
+      }
+      return true
+    case _ ⇒ false
+  }
 }
 
 object Mat3 {
-  def apply(m00: Real, m01: Real, m02: Real, m10: Real, m11: Real, m12: Real) = 
+  def apply(m00: Real, m01: Real, m02: Real, m10: Real, m11: Real, m12: Real) =
     new Mat3(Array(
       m00, m01, m02,
       m10, m11, m12,

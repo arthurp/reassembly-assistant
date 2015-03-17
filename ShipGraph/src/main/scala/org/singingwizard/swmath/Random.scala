@@ -90,14 +90,14 @@ object Random extends Sampler {
   }
 
   def uniformElement[T](coll: Iterable[T]): Option[T] = {
-    val i = uniformInt(0, coll.size - 1)
+    val i = uniformInt(0, coll.size)
     coll.view.drop(i).headOption
   }
   def uniformElement[T](coll: IndexedSeq[T]): Option[T] = {
     if (coll.isEmpty)
       None
     else
-      Some(coll(uniformInt(0, coll.size - 1)))
+      Some(coll(uniformInt(0, coll.size)))
   }
 
   def uniformReal(): Real = nextDouble()

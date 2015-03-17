@@ -1,7 +1,7 @@
 package org.singingwizard.reassembly.shipgraphs
 
 import scala.collection.mutable
-import scalax.collection.immutable.Graph
+import scalax.collection.Graph
 import scalax.collection.edge._
 import scalax.collection.GraphEdge._
 import scalax.collection.GraphPredef._
@@ -24,7 +24,7 @@ case class PlacedPiece(t: Mat3, kind: PieceKind) {
 
   def shape = kind.shape
   val tshape = shape.transform(t)
-  
+
   val boundingbox = AABB2(tshape.vertices)
 
   val ports = (0 until kind.ports.size).map(Ship.Port(_, this)).toIndexedSeq
@@ -51,7 +51,8 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
    * O(pieces.size + ports.size)
    */
   def add(placed: org.singingwizard.reassembly.shipgraphs.PlacedPiece): Option[ShipT] = {
-    val geoEdges = findGeometricallyImpliedEdgesFor(placed)
+    // This is lazy because if overlap check fails there is no reason to do it but writing it like this is cleaner.
+    lazy val geoEdges = findGeometricallyImpliedEdgesFor(placed)
     if (overlaps(placed) || (!graph.nodes.isEmpty && geoEdges.isEmpty)) {
       None
     } else {
@@ -125,7 +126,7 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
    */
   def overlaps(p: PlacedPiece) = {
     // TODO: Actually select only near by pieces. This will require some sort of search structure for pieces not points.
-    val nearPieces = pieces 
+    val nearPieces = pieces
     //overlapChecks += nearPieces.size
     nearPieces.exists(_.overlaps(p))
   }
@@ -136,9 +137,9 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
   def findGeometricallyImpliedEdgesFor(p: PlacedPiece) = {
     for {
       pp ← p.ports
-      pr ← ports(pp.position) 
+      pr ← ports(pp.position)
       //_ <- Some(portAlignmentChecks += 1)
-      if pr.position =~ pp.position
+      if pr.position =~ pp.position && pr.piece != pp.piece
     } yield pp ~ pr
   }
 
@@ -254,12 +255,21 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
   }
 }
 
-class ShipSegment protected (graph: Graph[Port, Edge], ports: SpatiallyBinnedSet2[Port])
-    extends ShipGraphBase[ShipSegment](graph, ports) {
+class ShipSegment protected (graph_ : Graph[Port, Edge], ports: SpatiallyBinnedSet2[Port])
+    extends ShipGraphBase[ShipSegment](graph_, ports) {
 
   def copy(graph: Graph[Port, Edge], ports: SpatiallyBinnedSet2[Port]): ShipSegment = new ShipSegment(graph, ports)
 
   val prefixString = "Segment"
+
+  override lazy val hashCode = graph.hashCode
+
+  override def equals(o: Any): Boolean = o match {
+    case o: ShipSegment ⇒ {
+      graph == o.graph
+    }
+    case _ ⇒ false
+  }
 }
 
 object ShipSegment {
@@ -274,6 +284,17 @@ final class Ship protected (graph: Graph[Port, Edge], ports: SpatiallyBinnedSet2
   def core = corePiece.piece
   override def copy(graph: Graph[Port, Edge], ports: SpatiallyBinnedSet2[Port]) = new Ship(graph, ports, corePiece)
 
+  def remove(p: PlacedPiece): Ship = {
+    if (p == core)
+      return this
+
+    val newg = graph - p -- p.ports
+    val newg2 = newg.innerElemTraverser(newg.get(core.ports(0))).toGraph
+    copy(graph = newg2, ports = SpatiallyBinnedPortSet() addValues newg2.edges.collect({
+      case Piece(p) ⇒ p.ports
+    }).flatten)
+  }
+
   val prefixString = "Ship"
 
   object validationShip {
@@ -285,6 +306,15 @@ final class Ship protected (graph: Graph[Port, Edge], ports: SpatiallyBinnedSet2
   override def validate() = {
     if (validationShip.missingCore) Some("Graph does not contain the ship core")
     else super.validate()
+  }
+
+  override lazy val hashCode = graph.hashCode ^ core.hashCode
+
+  override def equals(o: Any): Boolean = o match {
+    case o: Ship ⇒ {
+      graph == o.graph && core == o.core
+    }
+    case _ ⇒ false
   }
 }
 
@@ -349,12 +379,12 @@ object Ship {
   object Piece {
     def apply(piece: PlacedPiece) = new Piece[Port](buildNodesFromShape(piece), piece)
     def unapply(e: AnyRef): Option[PlacedPiece] = e match {
-      case e: Piece[_] => Some(e.piece)
-      case e: Graph[Port, Edge]#InnerEdge => e.edge match {
-        case Piece(p) => Some(p)
-        case _ => None
+      case e: Piece[_] ⇒ Some(e.piece)
+      case e: Graph[Port, Edge]#InnerEdge ⇒ e.edge match {
+        case e: Piece[_] ⇒ Some(e.piece)
+        case _ ⇒ None
       }
-      case _ => None
+      case _ ⇒ None
     }
   }
   implicit def PieceConvert(piece: PlacedPiece): Piece[Port] = Piece(piece)
@@ -378,12 +408,12 @@ object Ship {
   object Connection {
     def apply(a: Port, b: Port) = new Connection[Port](NodeProduct(a, b))
     def unapply(e: AnyRef): Option[(Port, Port)] = e match {
-      case e: Connection[_] => Some((portFromNode(e._1), portFromNode(e._2)))
-      case e: Graph[Port, Edge]#InnerEdge => e.edge match {
-        case Connection(a, b) => Some((a, b))
-        case _ => None
+      case e: Connection[_] ⇒ Some((portFromNode(e._1), portFromNode(e._2)))
+      case e: Graph[Port, Edge]#InnerEdge ⇒ e.edge match {
+        case Connection(a, b) ⇒ Some((a, b))
+        case _ ⇒ None
       }
-      case _ => None
+      case _ ⇒ None
     }
   }
 }
