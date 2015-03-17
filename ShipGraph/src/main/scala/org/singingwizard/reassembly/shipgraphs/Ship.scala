@@ -20,7 +20,7 @@ object SpatiallyBinnedPortSet {
 }
 
 case class PlacedPiece(t: Mat3, kind: PieceKind) {
-  def overlaps(o: PlacedPiece) = (boundingbox overlaps o.boundingbox) && (tshape overlaps o.tshape)
+  def overlaps(o: PlacedPiece) = (tshape overlaps o.tshape)
 
   def shape = kind.shape
   val tshape = shape.transform(t)
@@ -61,6 +61,9 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
   }
 
   def attach(segment: ShipSegment, porta: Port, portb: Port, allowPartial: Boolean = false) = attachGet(segment, porta, portb, allowPartial)._1
+  /**
+   * Attach the segment to this ship. Return the new ship and the pieces that could not be attached.
+   */
   def attachGet(segment: ShipSegment, porta: Port, portb: Port, allowPartial: Boolean = false): (ShipT, Set[PlacedPiece]) = {
     require(segment.ports contains porta)
     require(ports contains portb)
@@ -295,6 +298,8 @@ final class Ship protected (graph: Graph[Port, Edge], ports: SpatiallyBinnedSet2
     }).flatten)
   }
 
+  def piecesWithoutCore = graph.edges.map(_.edge).collect({ case Piece(p) if p != core ⇒ p })
+
   val prefixString = "Ship"
 
   object validationShip {
@@ -330,7 +335,7 @@ object Ship {
 
   case class Port(id: Shape.PortID, piece: PlacedPiece) {
     def ~(other: Port) = Connection(this, other)
-    override def toString = s"$piece.port($id)"
+    override def toString = s"${piece.kind}.port($id)@$position"
 
     val placedPort = piece.tshape.ports(id)
 

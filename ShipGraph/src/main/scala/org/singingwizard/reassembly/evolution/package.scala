@@ -8,9 +8,9 @@ package object evolution {
   /**
    * Mutate an individual.
    */
-  type Mutation = Genotype => Genotype
+  type Mutation = Phynotype => Genotype
   /**
    * A cross over function. This should always be called with a list sorted by fitness. 
    */
-  type Crossover = (Seq[Genotype])  => Genotype
+  type Crossover = (Seq[Phynotype])  => Genotype
 }

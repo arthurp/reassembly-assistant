@@ -2,35 +2,42 @@ package org.singingwizard.reassembly.evolution
 
 import org.singingwizard.reassembly.shipgraphs.Ship._
 import org.singingwizard.geo.AABB2
+import org.singingwizard.reassembly.shipgraphs.PlacedPiece
 
 case class Phynotype(genes: Genotype) {
   import Phynotype._
+  val graph = genes.graph
 
-  lazy val pathLengths = {
-    val g = genes.graph
-    val totalWeight = g.totalWeight
+  lazy val paths: scala.collection.Map[PlacedPiece, graph.Path] = {
     // TODO: This should do SSSP.
-    for {
+    // TODO: Right now this just searches from the 0th port of every piece. This will introduce bias.
+    (for {
       p ← genes.pieces if p != genes.core
-      port ← p.ports
+      port = p.ports(0)
     } yield {
-      val invweightFunc: g.EdgeT ⇒ Long = {
+      val invweightFunc: graph.EdgeT ⇒ Long = {
         case Piece(p1) if p == p1 ⇒ 0
-        case Piece(p1) ⇒ totalWeight - p1.kind.hitpoints
+        case Piece(p1) ⇒ 1
         case _ ⇒ 0
       }
-      val weightFunc: g.EdgeT ⇒ Long = {
+      graph.outerEdgeTraverser(graph.get(port)).shortestPathTo(graph.get(genes.core.ports(0)), invweightFunc) match {
+        case Some(path) ⇒ {
+          //println(s"Found path $path with weight ${path.weight(weightFunc)}")
+          p -> path
+        }
+        case None ⇒ throw new Error(s"There should always be a path from every node to the core: $port")
+      }
+    }).toMap
+  }
+  lazy val pathLengths = {
+    paths.mapValues { path ⇒
+      val p = path.startNode.value.piece
+      val weightFunc: graph.EdgeT ⇒ Long = {
         case Piece(p1) if p == p1 ⇒ 0
         case Piece(p1) ⇒ p1.kind.hitpoints
         case _ ⇒ 0
       }
-      g.outerEdgeTraverser(g.get(port)).shortestPathTo(g.get(genes.core.ports(0)), invweightFunc) match {
-        case Some(path) ⇒ {
-          //println(s"Found path $path with weight ${path.weight(weightFunc)}")
-          path.weight(weightFunc)
-        }
-        case None ⇒ throw new Error(s"There should always be a path from every node to the core: $port")
-      }
+      path.weight(weightFunc)
     }
   }
 
@@ -41,13 +48,13 @@ case class Phynotype(genes: Genotype) {
     if (pathLengths.isEmpty)
       0
     else
-      (pathLengths.sum.toDouble / pathLengths.size) * AVERAGE_PATH_TO_CORE_FACTOR
+      (pathLengths.values.sum.toDouble / pathLengths.size) * AVERAGE_PATH_TO_CORE_FACTOR
   }
   lazy val maxPathToCoreScore: Double = {
     if (pathLengths.isEmpty)
       0
     else
-      pathLengths.max * MAX_PATH_TO_CORE_FACTOR
+      pathLengths.values.max * MAX_PATH_TO_CORE_FACTOR
   }
   lazy val boundingBoxScore: Double = {
     val boundingBoxes = genes.pieces.map(_.boundingbox)
@@ -68,12 +75,13 @@ case class Phynotype(genes: Genotype) {
 
 object Phynotype {
   val PIECE_COUNT_FACTOR = -0.5
-  val MASS_FACTOR = -2.0
+  val MASS_FACTOR = -0.5
   val HP_FACTOR = 0.5
-  val AVERAGE_PATH_TO_CORE_FACTOR = 0.1
-  val MAX_PATH_TO_CORE_FACTOR = 1.2
-  val BOUNDING_BOX_FACTOR = -1.0
+  val AVERAGE_PATH_TO_CORE_FACTOR = -2
+  val MAX_PATH_TO_CORE_FACTOR = -1
+  val BOUNDING_BOX_FACTOR = 5.0
 
   import scala.language.implicitConversions
   implicit def extendGenotypeWithPhynotype(g: Genotype): Phynotype = Phynotype(g)
+  implicit def extractGenotype(g: Phynotype): Genotype = g.genes
 }

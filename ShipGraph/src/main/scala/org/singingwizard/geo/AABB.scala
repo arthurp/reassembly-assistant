@@ -7,8 +7,8 @@ import org.singingwizard.swmath.Epsilons._
 final class AABB2 private (
     private val minimum_x: Real, private val minimum_y: Real,
     private val maximum_x: Real, private val maximum_y: Real) {
-  assert(minimum_x <= maximum_x)
-  assert(minimum_y <= maximum_y)
+  require(minimum_x <= maximum_x)
+  require(minimum_y <= maximum_y)
 
   @inline
   def contains(p: Vec2) = {
@@ -23,14 +23,14 @@ final class AABB2 private (
   }
 
   def overlaps(o: AABB2) = {
-    (this contains o.minimum) ||
-      (this contains o.maximum) ||
-      (this contains o.minXmaxY) ||
-      (this contains o.maxXminY) ||
-      (o contains minimum) ||
-      (o contains maximum) ||
-      (o contains minXmaxY) ||
-      (o contains maxXminY)
+    (this containsEpsilon o.minimum) ||
+      (this containsEpsilon o.maximum) ||
+      (this containsEpsilon o.minXmaxY) ||
+      (this containsEpsilon o.maxXminY) ||
+      (o containsEpsilon minimum) ||
+      (o containsEpsilon maximum) ||
+      (o containsEpsilon minXmaxY) ||
+      (o containsEpsilon maxXminY)
   }
 
   def width = maximum_x - minimum_x
