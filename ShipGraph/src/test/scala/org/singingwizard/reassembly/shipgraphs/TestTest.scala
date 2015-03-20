@@ -17,7 +17,7 @@ object TestTest extends App {
 
   import Phynotype._
 
-  val kinds = Set(PieceKinds.squareStrong, PieceKinds.squareWeak, PieceKinds.largeTriangle, PieceKinds.wedge)
+  val kinds = Set(PieceKinds.squareStrong, PieceKinds.squareWeak, PieceKinds.largeTriangle, PieceKinds.wedge, PieceKinds.rightTriangle)
 
   var pop = Population((0 to 30).map(_ ⇒ GraphSpec.genShip.sample.get))
   DrawLayout.showMany { () ⇒

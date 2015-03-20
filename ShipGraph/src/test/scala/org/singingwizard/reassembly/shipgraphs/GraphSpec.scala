@@ -186,7 +186,7 @@ object GraphSpec {
 
   val genPiece = {
     if (curratedBlockSelection)
-      Gen.oneOf(PieceKinds.squareStrong, PieceKinds.squareWeak, PieceKinds.largeTriangle, PieceKinds.wedge)
+      Gen.oneOf(PieceKinds.squareStrong, PieceKinds.squareWeak, PieceKinds.largeTriangle, PieceKinds.wedge, PieceKinds.rightTriangle)
     else
       for (m ← genSmallNum; n ← genSmallNum; s ← genShape) yield PieceKind(s, m, n)
   }
