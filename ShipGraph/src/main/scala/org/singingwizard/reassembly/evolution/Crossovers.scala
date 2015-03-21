@@ -5,7 +5,7 @@ import org.singingwizard.swmath.Random
 import org.singingwizard.reassembly.shipgraphs.Ship._
 import org.singingwizard.reassembly.shipgraphs.ShipSegment
 import com.typesafe.scalalogging.StrictLogging
-
+/*
 case class Crossovers() extends StrictLogging {
   val TRIES = 100
 
@@ -61,3 +61,4 @@ case class Crossovers() extends StrictLogging {
 
   val all: Set[Crossover] = Set(fullOverride, splicePart)
 }
+*/

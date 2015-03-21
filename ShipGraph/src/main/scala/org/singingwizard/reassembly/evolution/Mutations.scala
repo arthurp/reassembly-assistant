@@ -3,7 +3,7 @@ package org.singingwizard.reassembly.evolution
 import org.singingwizard.reassembly.shipgraphs.PieceKind
 import org.singingwizard.swmath.Random
 import com.typesafe.scalalogging.StrictLogging
-
+/*
 case class Mutations(availablePieces: Set[PieceKind]) extends StrictLogging {
   val TRIES = 100
   
@@ -28,3 +28,4 @@ case class Mutations(availablePieces: Set[PieceKind]) extends StrictLogging {
 
   val all: Iterable[Mutation] = Seq(addPiece, removePiece, removePiece, noop)
 }
+*/

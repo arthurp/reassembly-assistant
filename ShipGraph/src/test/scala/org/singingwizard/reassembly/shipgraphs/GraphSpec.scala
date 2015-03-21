@@ -17,31 +17,29 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
   "A graph of Ports" >> {
     "Single piece graph" >> {
       val e = PlacedPiece(Mat3.nil, PieceKinds.squareWeak)
-      val g = Graph[Port, Edge]() + e
+      val g = ShipGraph() + e
       g.nodes.size ==== 4
       g.edges.size ==== 1
       g.get(e).nodes.toSet ==== g.nodes.toSet
     }
     "Single octagon graph" >> {
       val e = PlacedPiece(Mat3.nil, PieceKinds.core)
-      val g = Graph[Port, Edge]() + e
+      val g = ShipGraph() + e
       g.nodes.size ==== 8
       g.edges.size ==== 1
       g.get(e).nodes.toSet ==== g.nodes.toSet
     }
     "Self loop" >> {
       val e = PlacedPiece(Mat3.nil, PieceKinds.squareWeak)
-      val g = Graph[Port, Edge]() + e
-      g + (Port(0, e) ~ Port(1, e)) must throwA[EdgeException]
+      val g = ShipGraph() + e
+      g + (Port(0, e) ~ Port(1, e)) must throwA[IllegalArgumentException]
     }
     "Two piece graph" >> {
       val e1 = PlacedPiece(Mat3.nil, PieceKinds.squareWeak)
       val e2 = PlacedPiece(Mat3.translate(1, 0), PieceKinds.squareWeak)
-      val g = Graph[Port, Edge]() + e1 + e2 + (Port(0, e1) ~ Port(1, e2))
-      g.nodes.size ==== 8
-      g.edges.size ==== 3
-      g.edges.map(_.edge).count({ case Piece(_) ⇒ true; case _ ⇒ false }) ==== 2
-      g.edges.map(_.edge).count({ case Connection(_, _) ⇒ true; case _ ⇒ false }) ==== 1
+      val g = ShipGraph() + (Port(0, e1) ~ Port(1, e2)) + e1 + e2
+      g.nodes.size ==== 7
+      g.edges.size ==== 2
     }
   }
 
@@ -94,10 +92,10 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
       s2.connectionCount must_== 1
       s2.connections must have size (1)
       val c = s2.connections.head
-      c._1.id ==== 0
-      c._2.id ==== 0
-      c.isAt(n.ports(0)) ==== true
-      c.isAt(s2.core.ports(0)) ==== true
+      c.p1.id ==== 0
+      c.p2.id ==== 0
+      c.contains(n.ports(0)) ==== true
+      c.contains(s2.core.ports(0)) ==== true
     }
     "All spec generated ships are valid (incl after edits)" >> (prop { (s: Ship, pieceKind: PieceKind, portID: Int) ⇒
       s.validate ==== None
@@ -118,7 +116,7 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
       val (s2, Some(p1)) = s1.attachGet(PieceKinds.squareWeak, 0, s1.core.ports(0))
       val p2 = PlacedPiece(Mat3.nil, PieceKinds.squareStrong)
       val Some(seg) = ShipSegment().add(p2)
-      val (s3, ps) = s2.attachGet(seg, seg.disconnectedPorts.head, s2.get(p1).ports(1),
+      val (s3, ps) = s2.attachGet(seg, seg.disconnectedPorts.head, p1.ports(1),
         allowPartial = false)
       ps.size ==== 0
       s3.pieceCount ==== 3
@@ -130,7 +128,7 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
       val p3 = PlacedPiece(Mat3.translate(1, 0), PieceKinds.squareStrong)
       val p4 = PlacedPiece(Mat3.translate(0, 1), PieceKinds.squareStrong)
       val Some(seg) = ShipSegment().add(p2).flatMap(_.add(p3).flatMap(_.add(p4)))
-      val (s3, ps) = s2.attachGet(seg, seg.get(p4).ports(0), s2.get(p1).ports(3),
+      val (s3, ps) = s2.attachGet(seg, p4.ports(0), p1.ports(3),
         allowPartial = true)
       ps.size ==== 1
       s3.pieceCount ==== 4

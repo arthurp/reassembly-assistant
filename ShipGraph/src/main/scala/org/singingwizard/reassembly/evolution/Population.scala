@@ -1,7 +1,7 @@
 package org.singingwizard.reassembly.evolution
 
 import org.singingwizard.swmath.Random
-
+/*
 case class Population(phynotypes: Seq[Phynotype]) {
   import Phynotype._, Population._
 
@@ -50,3 +50,4 @@ object Population {
   import Phynotype._
   implicit val GenotypeOrdering: Ordering[Phynotype] = Ordering.by(-_.score)
 }
+*/

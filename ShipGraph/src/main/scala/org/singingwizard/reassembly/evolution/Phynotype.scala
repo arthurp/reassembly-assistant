@@ -4,7 +4,7 @@ import org.singingwizard.reassembly.shipgraphs.Ship._
 import org.singingwizard.geo.AABB2
 import org.singingwizard.reassembly.shipgraphs.PlacedPiece
 import org.singingwizard.swmath._
-
+/*
 case class Phynotype(genes: Genotype) {
   import Phynotype._
   val graph = genes.graph
@@ -107,3 +107,4 @@ object Phynotype {
   implicit def extendGenotypeWithPhynotype(g: Genotype): Phynotype = Phynotype(g)
   implicit def extractGenotype(g: Phynotype): Genotype = g.genes
 }
+*/

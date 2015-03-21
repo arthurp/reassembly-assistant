@@ -47,6 +47,9 @@ sealed abstract class Vec[V <: Vec[V]] {
     for (i <- 0 until size if !(this(i) =~ o(i))) return false
     true
   }
+  /*def approxHashcode: Int = {
+    (0 until size).foldLeft(0)((acc, i) => (this(i) / (Epsilons.COMPARE_EPSILON*100)).floor.toInt ^ acc + 17)
+  }*/
   
   override def toString = {
     val tags = if (length2 =~ 1) "n" else ""
