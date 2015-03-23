@@ -6,28 +6,24 @@ import org.singingwizard.swmath._
 import org.junit.runner.RunWith
 import org.scalacheck._
 import scalaz._
-import scalax.collection.GraphEdge.EdgeException
 import scala.math.Pi
 
 @RunWith(classOf[JUnitRunner])
 class GraphSpec extends mutable.Specification with ScalaCheck {
   import Ship._
-  import scalax.collection.immutable.Graph
 
   "A graph of Ports" >> {
     "Single piece graph" >> {
       val e = PlacedPiece(Mat3.nil, PieceKinds.squareWeak)
-      val g = ShipGraph() + e
-      g.nodes.size ==== 4
-      g.edges.size ==== 1
-      g.get(e).nodes.toSet ==== g.nodes.toSet
+      implicit val g = ShipGraph() + e
+      g.nodes.size ==== 1
+      e.edges(g) ==== g.edges
     }
     "Single octagon graph" >> {
       val e = PlacedPiece(Mat3.nil, PieceKinds.core)
-      val g = ShipGraph() + e
-      g.nodes.size ==== 8
-      g.edges.size ==== 1
-      g.get(e).nodes.toSet ==== g.nodes.toSet
+      implicit val g = ShipGraph() + e
+      g.nodes.size ==== 1
+      e.edges(g) ==== g.edges
     }
     "Self loop" >> {
       val e = PlacedPiece(Mat3.nil, PieceKinds.squareWeak)
@@ -37,9 +33,9 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
     "Two piece graph" >> {
       val e1 = PlacedPiece(Mat3.nil, PieceKinds.squareWeak)
       val e2 = PlacedPiece(Mat3.translate(1, 0), PieceKinds.squareWeak)
-      val g = ShipGraph() + (Port(0, e1) ~ Port(1, e2)) + e1 + e2
-      g.nodes.size ==== 7
-      g.edges.size ==== 2
+      val g = ShipGraph() + (Port(0, e1) ~ Port(2, e2)) + e1 + e2
+      g.nodes.size ==== 2
+      g.edges.size ==== 1
     }
   }
 
@@ -104,13 +100,14 @@ class GraphSpec extends mutable.Specification with ScalaCheck {
       s.remove(ports(portID % ports.size).piece).validate ==== None
     }).setArbitrary3(Arbitrary(Gen.posNum[Int]))
   }
-
+  
   "A ship segment graph" >> {
     "Empty has no nodes or edges" >> {
       ShipSegment().pieceCount must_== 0
       ShipSegment().pieces must have size (0)
       ShipSegment().connections must have size (0)
     }
+    
     "We can splice one onto another full succeed" >> {
       val s1 = Ship()
       val (s2, Some(p1)) = s1.attachGet(PieceKinds.squareWeak, 0, s1.core.ports(0))
@@ -195,13 +192,13 @@ object GraphSpec {
       g.attach(s, i, portb)
     }
   }
-  
+
   def genAddNodeMaybeOnSamePort[T <: ShipGraphBase[T]]: Gen[T ⇒ Gen[T]] = for (s ← genPiece; i ← genIndex(s.ports)) yield { g ⇒
     for (portb ← Gen.oneOf(g.ports.toSeq)) yield {
       g.attach(s, i, portb)
     }
   }
-  
+
   def genCommand[T <: ShipGraphBase[T]]: Gen[T ⇒ Gen[T]] = Gen.oneOf(genAddNode[T], genAddNodeMaybeOnSamePort[T])
 
   val genShip: Gen[Ship] = {

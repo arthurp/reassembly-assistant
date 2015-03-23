@@ -2,36 +2,42 @@ package org.singingwizard.reassembly.evolution
 
 import org.singingwizard.reassembly.shipgraphs.Ship._
 import org.singingwizard.geo.AABB2
-import org.singingwizard.reassembly.shipgraphs.PlacedPiece
 import org.singingwizard.swmath._
-/*
+import org.singingwizard.reassembly.shipgraphs.PlacedPiece
+import scala.collection.mutable
+import org.singingwizard.reassembly.shipgraphs.PlacedPiece
+
 case class Phynotype(genes: Genotype) {
   import Phynotype._
   val graph = genes.graph
 
-  lazy val paths: scala.collection.Map[PlacedPiece, graph.Path] = {
-    // TODO: This should do SSSP.
-    // TODO: Right now this just searches from the 0th port of every piece. This will introduce bias.
-    (for {
-      p ← genes.pieces if p != genes.core
-      port = p.ports(0)
-    } yield {
-      val invweightFunc: graph.EdgeT ⇒ Long = {
-        case Piece(p1) if p == p1 ⇒ 0
-        case Piece(p1) ⇒ 1
-        case _ ⇒ 0
-      }
-      graph.outerEdgeTraverser(graph.get(port)).shortestPathTo(graph.get(genes.core.ports(0)), invweightFunc) match {
-        case Some(path) ⇒ {
-          //println(s"Found path $path with weight ${path.weight(weightFunc)}")
-          p -> path
+  lazy val paths: scala.collection.Map[PlacedPiece, Iterable[PlacedPiece]] = {
+    var tentatives = mutable.Map[PlacedPiece, (Int, Seq[PlacedPiece])]().withDefaultValue((Int.MaxValue, Seq()))
+    var visited = mutable.Set[PlacedPiece]()
+    val queue = new mutable.PriorityQueue[(PlacedPiece, Int, Seq[PlacedPiece])]()(Ordering.by(_._2))
+    queue += ((genes.core, 0, Seq(genes.core)))
+    tentatives += genes.core -> (0, Seq(genes.core))
+    while (!queue.isEmpty) {
+      val (curr, dist, path) = queue.dequeue()
+      if (!visited.contains(curr)) {
+        for (neigh ← graph.neighbors(curr) if !visited.contains(neigh)) {
+          val (td, tp) = tentatives(neigh)
+          val d = td min (dist + 1)
+          val p = path :+ neigh
+          tentatives(neigh) = (d, p)
+          queue.enqueue((neigh, d, p))
         }
-        case None ⇒ throw new Error(s"There should always be a path from every node to the core: $port")
+        visited += curr
       }
-    }).toMap
+    }
+    tentatives mapValues { v =>
+      val (d, p) = v
+      p
+    }
   }
   lazy val pathLengths = {
     paths.mapValues { path ⇒
+      /*
       val p = path.startNode.value.piece
       val weightFunc: graph.EdgeT ⇒ Long = {
         case Piece(p1) if p == p1 ⇒ 0
@@ -39,6 +45,8 @@ case class Phynotype(genes: Genotype) {
         case _ ⇒ 0
       }
       path.weight(weightFunc)
+      */
+      path.size
     }
   }
 
@@ -73,7 +81,6 @@ case class Phynotype(genes: Genotype) {
     }).sum * ANGULAR_INERTIA_FACTOR
   }
 
-
   lazy val pieceConnectednessScore: Double = {
     // TODO: Make this a real useful thing.
     (genes.connectionCount.toDouble / genes.pieceCount) * PIECE_CONNECTEDNESS_SCORE
@@ -82,11 +89,11 @@ case class Phynotype(genes: Genotype) {
   lazy val score: Double = {
     val v = pieceCountScore + massScore + hpScore +
       averagePathToCoreScore + boundingBoxScore +
-      maxPathToCoreScore + angularInertiaScore + 
+      maxPathToCoreScore + angularInertiaScore +
       pieceConnectednessScore
     def scoresStr = s"$pieceCountScore + $massScore + $hpScore + $averagePathToCoreScore + " +
-                    s"$boundingBoxScore + $maxPathToCoreScore + $angularInertiaScore + " +
-                    s"$pieceConnectednessScore"
+      s"$boundingBoxScore + $maxPathToCoreScore + $angularInertiaScore + " +
+      s"$pieceConnectednessScore"
     assert(!v.isInfinite, s"Got inf from: $scoresStr\n$genes")
     assert(!v.isNaN, s"Got NaN from: $scoresStr\n$genes")
     v
@@ -107,4 +114,3 @@ object Phynotype {
   implicit def extendGenotypeWithPhynotype(g: Genotype): Phynotype = Phynotype(g)
   implicit def extractGenotype(g: Phynotype): Genotype = g.genes
 }
-*/

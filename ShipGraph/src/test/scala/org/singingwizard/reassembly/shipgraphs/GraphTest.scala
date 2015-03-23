@@ -2,7 +2,6 @@ package org.singingwizard.reassembly.shipgraphs
 
 import org.singingwizard.swmath.Mat3
 import scalaz.State
-import scalax.collection.immutable.Graph
 import org.singingwizard.reassembly.shipgraphs.debug.DrawLayout
 import org.singingwizard.swmath.Random
 

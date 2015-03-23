@@ -5,7 +5,7 @@ import org.singingwizard.swmath.Random
 import org.singingwizard.reassembly.shipgraphs.Ship._
 import org.singingwizard.reassembly.shipgraphs.ShipSegment
 import com.typesafe.scalalogging.StrictLogging
-/*
+
 case class Crossovers() extends StrictLogging {
   val TRIES = 100
 
@@ -22,22 +22,12 @@ case class Crossovers() extends StrictLogging {
 
     val pieces = partDonor.piecesWithoutCore.filter({ p ⇒
       val path = partDonor.paths(p)
-      path.edges.exists({
-        case Piece(p) ⇒ p == partSeparator
-        case _ ⇒ false
-      })
+      path.toSet contains partSeparator
     }) + partSeparator - partDonor.core
 
     assert(pieces contains partSeparator)
 
-    val traverser = partDonor.graph.outerEdgeTraverser(partDonor.graph.get(pieces.head.ports(0)),
-      subgraphEdges = {
-        case Piece(p) ⇒ pieces contains p
-        case Connection(_, _) ⇒ true
-        case _ ⇒ false
-      }).collect({
-        case Piece(p) ⇒ p
-      }).toSeq.distinct
+    val traverser = partDonor.graph.dfsIterator(pieces.head, pieces.contains).toSeq
 
     val partOpt = traverser.foldLeft(Some(ShipSegment()): Option[ShipSegment])((seg, p) ⇒ seg.flatMap(_.add(p)))
     assert(partOpt.isDefined, s"Failed to make segment: $traverser")
@@ -61,4 +51,3 @@ case class Crossovers() extends StrictLogging {
 
   val all: Set[Crossover] = Set(fullOverride, splicePart)
 }
-*/
