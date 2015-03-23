@@ -68,8 +68,30 @@ class Graph[N <: GraphNode, E <: GraphEdge[N]] protected (val edges: Set[E], pri
     def get() = storedNodes.dequeue()
     def isEmpty: Boolean = storedNodes.isEmpty
   })
-  def dfsIterator(n: N): Iterator[N] = dfsIterator(n, _ => true)
-  def dfsIterator(n: N, nodeFilter: N => Boolean): Iterator[N] = simpleIterator(new Graph.ElementOrderer[N] {
+
+  def bfsPath(source: N, sink: N, edgeFilter: (N, N) ⇒ Boolean): Option[Seq[N]] = {
+    val storedNodes = new mutable.Queue[Seq[N]]()
+    storedNodes += List(source)
+    val storedNodeSet = new mutable.HashSet[N]()
+    storedNodeSet += source
+
+    while (!storedNodes.isEmpty) { // Contains return
+      val path = storedNodes.dequeue()
+      val n = path.head
+      for (n2 ← graph.incidentEdges(n).iterator.flatMap(_.nodes) if !storedNodeSet.contains(n2) && edgeFilter(n, n2)) {
+        val np = n2 +: path
+        if (n2 == sink) {
+          return Some(np)
+        }
+        storedNodeSet += n2
+        storedNodes.enqueue(np)
+      }
+    }
+    None
+  }
+
+  def dfsIterator(n: N): Iterator[N] = dfsIterator(n, _ ⇒ true)
+  def dfsIterator(n: N, nodeFilter: N ⇒ Boolean): Iterator[N] = simpleIterator(new Graph.ElementOrderer[N] {
     val storedNodes = new mutable.Stack[N]()
     storedNodes.push(n)
 

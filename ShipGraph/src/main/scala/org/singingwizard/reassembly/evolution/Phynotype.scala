@@ -1,15 +1,53 @@
 package org.singingwizard.reassembly.evolution
 
+import org.singingwizard.reassembly.shipgraphs._
 import org.singingwizard.reassembly.shipgraphs.Ship._
 import org.singingwizard.geo.AABB2
 import org.singingwizard.swmath._
 import org.singingwizard.reassembly.shipgraphs.PlacedPiece
 import scala.collection.mutable
-import org.singingwizard.reassembly.shipgraphs.PlacedPiece
 
 case class Phynotype(genes: Genotype) {
   import Phynotype._
   val graph = genes.graph
+
+  def minCut(sink: PlacedPiece, width: (PieceKind, PieceKind) => Int): Int = {
+    // TODO: This algorithm needs to be changed to effectively work over the dual graph.
+    //println(graph)
+    //println(sink)
+    var totalFlow = 0
+    var flows = mutable.Map[(PlacedPiece, PlacedPiece), Int]().withDefaultValue(0)
+    for (Connection(Port(_, p1), Port(_, p2)) ← graph.edges) {
+      flows((p1, p2)) += width(p1.kind, p2.kind)
+      flows((p2, p1)) += width(p1.kind, p2.kind)
+    }
+    //println(flows)
+    for (
+      Some(path) ← Stream.continually(graph.bfsPath(genes.core, sink, (a, b) ⇒ flows((b, a)) > 0)).
+        takeWhile(_.isDefined)
+    ) {
+      val maxFlow = path.sliding(2).map({ p ⇒
+        val Seq(p1, p2) = p
+        flows((p1, p2))
+      }).min
+      //println(s"Residual path: $path = $maxFlow")
+      //println(flows)
+
+      for (Seq(u, v) ← path.sliding(2)) {
+        flows((u, v)) -= maxFlow
+        flows((v, u)) += maxFlow
+      }
+      totalFlow += maxFlow
+      //println(totalFlow)
+    }
+    val r = totalFlow
+    //println(s"Result: $r\n$flows")
+    r
+  }
+  lazy val minCuts: scala.collection.Map[PlacedPiece, Int] = {
+    //genes.piecesWithoutCore.map(p ⇒ p -> minCut(p, _.hitpoints + _.hitpoints)).toMap
+    genes.piecesWithoutCore.map(p ⇒ p -> minCut(p, (_, _) => 1)).toMap
+  }
 
   lazy val paths: scala.collection.Map[PlacedPiece, Iterable[PlacedPiece]] = {
     var tentatives = mutable.Map[PlacedPiece, (Int, Seq[PlacedPiece])]().withDefaultValue((Int.MaxValue, Seq()))
@@ -30,7 +68,7 @@ case class Phynotype(genes: Genotype) {
         visited += curr
       }
     }
-    tentatives mapValues { v =>
+    tentatives mapValues { v ⇒
       val (d, p) = v
       p
     }
@@ -53,18 +91,34 @@ case class Phynotype(genes: Genotype) {
   lazy val pieceCountScore: Double = genes.pieceCount * PIECE_COUNT_FACTOR
   lazy val massScore: Double = genes.pieces.foldLeft(0.0)(_ + _.kind.mass) * MASS_FACTOR
   lazy val hpScore: Double = genes.pieces.foldLeft(0.0)(_ + _.kind.hitpoints) * HP_FACTOR
+
   lazy val averagePathToCoreScore: Double = {
     if (pathLengths.isEmpty)
       0
     else
       (pathLengths.values.sum.toDouble / pathLengths.size) * AVERAGE_PATH_TO_CORE_FACTOR
   }
+
   lazy val maxPathToCoreScore: Double = {
     if (pathLengths.isEmpty)
       0
     else
       pathLengths.values.max * MAX_PATH_TO_CORE_FACTOR
   }
+
+  lazy val minMinCutScore: Double = {
+    if (minCuts.isEmpty)
+      0
+    else
+      minCuts.values.min * MIN_MIN_CUT_FACTOR
+  }
+  lazy val averageMinCutScore: Double = {
+    if (minCuts.isEmpty)
+      0
+    else
+      (minCuts.values.sum.toDouble / minCuts.size) * AVERAGE_MIN_CUT_FACTOR
+  }
+
   lazy val boundingBoxScore: Double = {
     val boundingBoxes = genes.pieces.map(_.boundingbox)
     def bbSize(bb: AABB2) = {
@@ -90,10 +144,10 @@ case class Phynotype(genes: Genotype) {
     val v = pieceCountScore + massScore + hpScore +
       averagePathToCoreScore + boundingBoxScore +
       maxPathToCoreScore + angularInertiaScore +
-      pieceConnectednessScore
+      pieceConnectednessScore + minMinCutScore + averageMinCutScore
     def scoresStr = s"$pieceCountScore + $massScore + $hpScore + $averagePathToCoreScore + " +
       s"$boundingBoxScore + $maxPathToCoreScore + $angularInertiaScore + " +
-      s"$pieceConnectednessScore"
+      s"$pieceConnectednessScore + $minMinCutScore + $averageMinCutScore"
     assert(!v.isInfinite, s"Got inf from: $scoresStr\n$genes")
     assert(!v.isNaN, s"Got NaN from: $scoresStr\n$genes")
     v
@@ -101,14 +155,16 @@ case class Phynotype(genes: Genotype) {
 }
 
 object Phynotype {
-  val PIECE_COUNT_FACTOR = 3.0
-  val MASS_FACTOR = 0
+  val PIECE_COUNT_FACTOR = 2.0
+  val MASS_FACTOR = 0.0
   val HP_FACTOR = 0
-  val AVERAGE_PATH_TO_CORE_FACTOR = -0.2
-  val MAX_PATH_TO_CORE_FACTOR = -0.1
-  val BOUNDING_BOX_FACTOR = 0
+  val AVERAGE_PATH_TO_CORE_FACTOR = 0
+  val MAX_PATH_TO_CORE_FACTOR = 0
+  val BOUNDING_BOX_FACTOR = 1.0
   val ANGULAR_INERTIA_FACTOR = -0.01
-  val PIECE_CONNECTEDNESS_SCORE = 10.0
+  val PIECE_CONNECTEDNESS_SCORE = 0
+  val MIN_MIN_CUT_FACTOR = 1.0
+  val AVERAGE_MIN_CUT_FACTOR = 1.0
 
   import scala.language.implicitConversions
   implicit def extendGenotypeWithPhynotype(g: Genotype): Phynotype = Phynotype(g)
