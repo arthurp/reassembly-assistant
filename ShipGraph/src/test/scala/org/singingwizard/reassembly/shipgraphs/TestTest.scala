@@ -20,7 +20,7 @@ object TestTest extends App {
   val kinds = Set(PieceKinds.squareStrong, PieceKinds.squareWeak, PieceKinds.largeTriangle, PieceKinds.wedge, PieceKinds.rightTriangle)
 
   var pop = Population((0 to 30).map(_ ⇒ GraphSpec.genShip.sample.get))
-  DrawLayout.showMany { () ⇒
+  DrawLayout.showMany(20) { () ⇒
     pop = pop.reproduce(Mutations(kinds).all, Crossovers().all, 100)
 
     println(pop.phynotypes.map(_.score))

@@ -77,6 +77,7 @@ object Random extends Sampler {
   private val rng = new MersenneTwisterFast()
 
   private def nextInt(n: Int) = synchronized { rng.nextInt(n) }
+  @inline
   private def nextDouble() = synchronized { rng.nextDouble() }
   private def nextBoolean() = synchronized { rng.nextBoolean() }
 
@@ -101,9 +102,11 @@ object Random extends Sampler {
   }
 
   def uniformReal(): Real = nextDouble()
+  @inline
   def uniformSquare(): Vec2 = synchronized {
     Vec2(rng.nextDouble(), rng.nextDouble())
   }
+  @inline
   def uniformCube(): Vec3 = synchronized {
     Vec3(rng.nextDouble(), rng.nextDouble(), rng.nextDouble())
   }

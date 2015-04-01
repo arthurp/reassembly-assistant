@@ -1,10 +1,9 @@
 package org.singingwizard.reassembly.shipgraphs
 
 import scala.collection.mutable
-import org.singingwizard.swmath.Mat3
 import Ship._
 import org.singingwizard.geo.SpatiallyBinnedSet2
-import org.singingwizard.swmath.Vec2
+import org.singingwizard.swmath._
 import org.singingwizard.geo.AABB2
 
 object SpatiallyBinnedPortSet {
@@ -16,7 +15,13 @@ object SpatiallyBinnedPortSet {
 }
 
 case class PlacedPiece(t: Mat3, kind: PieceKind) extends GraphNode {
+  @inline
   def overlaps(o: PlacedPiece) = (tshape overlaps o.tshape)
+  @inline
+  def intersects(ray: Ray): Real = {
+    //println(s"Itersecting $this X $ray")
+    tshape intersects ray
+  }
 
   def shape = kind.shape
   val tshape = shape.transform(t)
@@ -120,6 +125,20 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
     val nearPieces = pieces
     //overlapChecks += nearPieces.size
     nearPieces.exists(_.overlaps(p))
+  }
+
+  /**
+   * O(pieces.size)
+   */
+  def intersects(r: Ray): Option[PlacedPiece] = {
+    val dps = pieces.map(p ⇒ (p, p.intersects(r)))
+    //println(dps)
+    val (p, d) = dps.minBy(_._2)
+    //println(s"Nearest inter: $p@$d")
+    if (!d.isInfinite)
+      Some(p)
+    else
+      None
   }
 
   /**

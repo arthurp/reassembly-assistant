@@ -87,7 +87,7 @@ object DrawLayout {
     })
   }
 
-  def showMany(makeLayout: () ⇒ Ship): Unit = {
+  def showMany(time: Int = 1000)(makeLayout: () ⇒ Ship): Unit = {
     SwingUtilities.invokeLater(new Runnable {
       def run() = {
         val frame = new JFrame()
@@ -97,7 +97,7 @@ object DrawLayout {
         frame.pack()
         frame.setVisible(true)
 
-        val timer = new Timer(10, new ActionListener() {
+        val timer = new Timer(time, new ActionListener() {
           def actionPerformed(e: ActionEvent) = {
             display.glayout = makeLayout()
             frame.repaint()

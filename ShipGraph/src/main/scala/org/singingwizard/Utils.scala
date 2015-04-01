@@ -20,7 +20,7 @@ object Utils {
 
 object SlidingPairsWrapping {
   implicit class SlidingPairsWithWrap[T](val iter: Iterator[T]) extends AnyVal {
-    def slidingPairsWrapping = new AbstractIterator[(T, T)] {
+    def slidingPairsWrapping: Iterator[(T, T)] = new AbstractIterator[(T, T)] {
       private val first = iter.next()
       private var prev: T = first
       private var emittedLast = false

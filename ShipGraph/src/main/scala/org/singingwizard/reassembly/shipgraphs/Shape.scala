@@ -3,8 +3,9 @@ package org.singingwizard.reassembly.shipgraphs
 import org.singingwizard.swmath._
 import org.singingwizard.SlidingPairsWrapping._
 import scala.reflect.ClassTag
+import org.singingwizard.geo.AABB2
 
-final class PortPlacement(val position: Vec2, val direction: Vec2) {  
+final class PortPlacement(val position: Vec2, val direction: Vec2) {
   /**
    * Compute the transform that will move/rotate o to connect with this (based on position and direction of both)
    */
@@ -17,7 +18,7 @@ final class PortPlacement(val position: Vec2, val direction: Vec2) {
   def transform(trans: Mat3): PortPlacement = {
     PortPlacement(trans * position, trans *# direction)
   }
-  
+
   override def toString = s"$position --> $direction"
 }
 object PortPlacement {
@@ -29,40 +30,47 @@ object PortPlacement {
 }
 
 case class Shape(vertices: Array[Vec2], ports: Array[PortPlacement]) {
+  @inline
   def lines = vertices.slidingPairsWrapping
-  
+
   def flipped: Shape = transform(Mat3.scale(1, -1))
 
   def transform(trans: Mat3): Shape = {
     Shape(vertices.map(trans * _), ports.map(_.transform(trans)))
   }
- 
+
   lazy val epsilonShrunk = {
-    val m = Mat3.scale(centroid, 1-Epsilons.COMPARE_EPSILON)
+    val m = Mat3.scale(centroid, 1 - Epsilons.COMPARE_EPSILON)
     vertices.map(m * _)
   }
-  
+
   def centroid = vertices.reduce(_ + _) / vertices.size
-  
+
   def overlaps(o: Shape): Boolean = Shape.overlapsOneDirection(this, o) && Shape.overlapsOneDirection(o, this)
-  
+
+  def intersects(ray: Ray): Real = {
+    val is = lines.map(Shape.lineRayIntersects(_, ray))
+    val d = is.min
+    d
+  }
+
   override lazy val hashCode = vertices.hashCode ^ ports.hashCode
-  
+
   override def toString = s"Shape(${vertices.mkString(", ")}; ${ports.mkString(", ")})"
 }
 
 object Shape {
   type PortID = Int
-  
+
   def overlapsOneDirection(s1full: Shape, s2: Shape): Boolean = {
     val s1verts = s1full.epsilonShrunk
     //println(s"Checking $s1 lines against $s2")
-    
-    for ((a, b) <- s1verts.slidingPairsWrapping) {
+
+    for ((a, b) ← s1verts.slidingPairsWrapping) {
       val v = (a - b).arbitraryPerpendicular
       //println(s"Checking line $a - $b: $v")
       // TODO: If performance is needed this could be optimized to compute max and min directly without building intermediate vectors.
-      def projectPoints(s: Array[Vec2]) = s map { p => 
+      def projectPoints(s: Array[Vec2]) = s map { p ⇒
         v * p
       }
       val projectedPoints1 = projectPoints(s1verts)
@@ -77,18 +85,44 @@ object Shape {
         return false
     }
     return true
-  } 
+  }
+
+  def lineRayIntersects(line: (Vec2, Vec2), ray: Ray): Real = {
+    val (lp1, lp2) = line
+    val (rp1, rp2) = (ray.origin, ray.origin + ray.direction)
+
+    // Compute the intersection point of the ray and the line
+    val px =
+      ((lp1.x * lp2.y - lp1.y * lp2.x) * (rp1.x - rp2.x) - (lp1.x - lp2.x) * (rp1.x * rp2.y - rp1.y * rp2.x)) /
+        ((lp1.x - lp2.x) * (rp1.y - rp2.y) - (lp1.y - lp2.y) * (rp1.x - rp2.x))
+    val py =
+      ((lp1.x * lp2.y - lp1.y * lp2.x) * (rp1.y - rp2.y) - (lp1.y - lp2.y) * (rp1.x * rp2.y - rp1.y * rp2.x)) /
+        ((lp1.x - lp2.x) * (rp1.y - rp2.y) - (lp1.y - lp2.y) * (rp1.x - rp2.x))
+    val p = Vec2(px, py)
+
+    val lineLen2 = (lp2 - lp1).length2
+    val proj = (p - lp1) * (lp2 - lp1)
+    val onLine = proj >= -Epsilons.COMPARE_EPSILON && proj <= (lineLen2 - Epsilons.COMPARE_EPSILON)
+
+    val originIntersectionVec = p - ray.origin
+    val onRay = originIntersectionVec sameHemisphere ray.direction
+
+    if (onLine && onRay)
+      originIntersectionVec.length
+    else
+      Double.PositiveInfinity
+  }
 }
 
 object Shapes {
   def ShapeSeq[T: ClassTag](vs: T*) = Array(vs: _*)
-  
+
   val square = regularPolygon(4)
   val largeEquilateralTriangle = regularPolygonTwoPortsPerSide(3)
   val smallEquilateralTriangle = {
     val s = regularPolygon(3)
     val sideLen = (s.vertices(0) - s.vertices(1)).length
-    s.transform(Mat3.scale(1/sideLen, 1/sideLen))
+    s.transform(Mat3.scale(1 / sideLen, 1 / sideLen))
   }
   val smallRectangle = Shape(
     ShapeSeq(Vec2(1, 0), Vec2(1, 0.5), Vec2(0, 0.5), Vec2(0, 0)),
@@ -103,7 +137,7 @@ object Shapes {
       PortPlacement(Vec2(0.5, 0), Vec2(0, -1)),
       PortPlacement(Vec2(0.5, 0.5), Vec2(1, 1)),
       PortPlacement(Vec2(0, 0.5), Vec2(-1, 0))))
-      
+
   val longEdgeCenter = (Vec2(1, 0) + Vec2(0, 2)) / 2
   val longEdgeVec = (Vec2(1, 0) - Vec2(0, 2)).normalized / 2
   val longEdgeNorm = Vec2(2, 1)
@@ -115,30 +149,30 @@ object Shapes {
       PortPlacement(Vec2(0, 1.5), Vec2(-1, 0)),
       PortPlacement(longEdgeCenter + longEdgeVec, longEdgeNorm),
       PortPlacement(longEdgeCenter - longEdgeVec, longEdgeNorm)
-      ))
+    ))
 
   def regularPolygon(n: Int): Shape = {
-    val centers = (0.0 to 2*math.Pi by (2*math.Pi / n)).take(n).map(t => Vec2.fromAngle(t) / 2)
-    val corners = (for ((c1, c2) <- centers.slidingPairsWrapping) yield {
+    val centers = (0.0 to 2 * math.Pi by (2 * math.Pi / n)).take(n).map(t ⇒ Vec2.fromAngle(t) / 2)
+    val corners = (for ((c1, c2) ← centers.slidingPairsWrapping) yield {
       val p1 = c1.counterclockwisePerpendicular
       val p2 = c2.counterclockwisePerpendicular
-      Vec2.intersection(c1, c1+p1, c2, c2+p2)
+      Vec2.intersection(c1, c1 + p1, c2, c2 + p2)
     }).toSeq
-    val ports = for (c <- centers) yield PortPlacement(c, c) 
-    
+    val ports = for (c ← centers) yield PortPlacement(c, c)
+
     Shape(corners.toArray, ports.toArray)
   }
   def regularPolygonTwoPortsPerSide(n: Int): Shape = {
     val s = regularPolygon(n)
     val lines = s.lines.toIterable
-    val ports = for (((v1, v2), p) <- lines zip (s.ports.tail :+ s.ports.head)) yield {
+    val ports = for (((v1, v2), p) ← lines zip (s.ports.tail :+ s.ports.head)) yield {
       val v = (v1 - v2).normalized / 2
       Seq(PortPlacement(p.position + v, p.direction), PortPlacement(p.position - v, p.direction))
     }
-    
+
     s.copy(ports = ports.flatten.toArray)
   }
-      
+
   val octogon = regularPolygon(8)
 }
 
