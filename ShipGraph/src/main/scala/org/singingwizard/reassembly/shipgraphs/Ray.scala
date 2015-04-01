@@ -4,6 +4,8 @@ import org.singingwizard.swmath._
 
 case class Ray(origin: Vec2, direction: Vec2) {
   assert(direction.normalized =~ direction)
+  
+  def =~(o: Ray) = origin =~ o.origin && direction =~ o.direction
 }
 
 object Ray {

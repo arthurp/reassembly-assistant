@@ -10,28 +10,28 @@ object GraphTest extends App {
   import Ship._
 
   var g = GraphSpec.genShip.sample.get
-  var r = Ray.randomRay(10, 100, 0.5)
-  DrawLayout.showMany(300) { () => 
-    //val s = GraphSpec.genSegment.sample.get
-    //g = g.attach(s, Random.uniformElement(s.disconnectedPorts).get,
-    //  Random.uniformElement(g.disconnectedPorts).get, allowPartial = true)
-    //println(Phynotype(g).minCuts)
-    val o = g
+  DrawLayout.showMany(30) { () ⇒
+    val s = GraphSpec.genSegment.sample.get
+    g = g.attach(s, Random.uniformElement(s.disconnectedPorts).get,
+      Random.uniformElement(g.disconnectedPorts).get, allowPartial = true)
+    val p = Phynotype(g)
+    val r = Ray.randomRay(10, 100, 0.5)
     println(s"Shooting $r")
     g.intersects(r) match {
-      case Some(p) if p == g.core => {
-        println(s"Destroyed: ${g.pieceCount}")
+      case Some(p) if p == g.core ⇒ {
+        /*println(s"Destroyed: ${g.pieceCount}")
         g = GraphSpec.genShip.sample.get
         r = Ray.randomRay(10, 100, 0.5)
+        */
       }
-      case Some(p) => {
+      case Some(p) ⇒ {
         println(s"Hit $p")
         g = g.remove(p)
       }
-      case None => {
-        println(s"Miss")        
+      case None ⇒ {
+        println(s"Miss")
       }
     }
-    o
+    g
   }
 }

@@ -11,7 +11,7 @@ case class Phynotype(genes: Genotype) {
   import Phynotype._
   val graph = genes.graph
 
-  def minCut(sink: PlacedPiece, width: (PieceKind, PieceKind) => Int): Int = {
+  def minCut(sink: PlacedPiece, width: (PieceKind, PieceKind) ⇒ Int): Int = {
     // TODO: This algorithm needs to be changed to effectively work over the dual graph.
     //println(graph)
     //println(sink)
@@ -46,7 +46,7 @@ case class Phynotype(genes: Genotype) {
   }
   lazy val minCuts: scala.collection.Map[PlacedPiece, Int] = {
     //genes.piecesWithoutCore.map(p ⇒ p -> minCut(p, _.hitpoints + _.hitpoints)).toMap
-    genes.piecesWithoutCore.map(p ⇒ p -> minCut(p, (_, _) => 1)).toMap
+    genes.piecesWithoutCore.map(p ⇒ p -> minCut(p, (_, _) ⇒ 1)).toMap
   }
 
   lazy val paths: scala.collection.Map[PlacedPiece, Iterable[PlacedPiece]] = {
@@ -137,34 +137,122 @@ case class Phynotype(genes: Genotype) {
 
   lazy val pieceConnectednessScore: Double = {
     // TODO: Make this a real useful thing.
-    (genes.connectionCount.toDouble / genes.pieceCount) * PIECE_CONNECTEDNESS_SCORE
+    (genes.connectionCount.toDouble / genes.pieceCount) * PIECE_CONNECTEDNESS_FACTOR
+  }
+
+  lazy val rayDamage = {
+    for (r ← raysNotAllCenter) yield {
+      genes.intersects(r) match {
+        case Some(p) if p == genes.core ⇒ {
+          CORE_DAMAGE
+        }
+        case Some(p) ⇒ {
+          val (_, rem) = genes.removePartition(p)
+          rem.size
+        }
+        case None ⇒ 0
+      }
+    }
+  }
+  lazy val averageDamageScore = (rayDamage.sum / rayDamage.size) * AVERAGE_DAMAGE_FACTOR
+  lazy val maxDamageScore = rayDamage.max * MAX_DAMAGE_FACTOR
+
+  lazy val raySurvivableShots = {
+    for (r ← rays) yield {
+      var g = genes
+      var destroyed = false
+      var count = 0
+      do {
+        g.intersects(r) match {
+          case Some(p) if p == genes.core ⇒ {
+            destroyed = true
+          }
+          case Some(p) ⇒ {
+            g = g.remove(p)
+            count += p.kind.hitpoints
+          }
+        }
+      } while (!destroyed)
+      count
+    }
+  }
+  lazy val averageSurvivableScore = (raySurvivableShots.sum / raySurvivableShots.size) * AVERAGE_SURVIVABLE_FACTOR
+  lazy val minSurvivableScore = raySurvivableShots.min * MIN_SURVIVABLE_FACTOR
+
+  lazy val barrageSurvivableScore = {
+    var g = genes
+    var destroyed = false
+    var count = 0
+    do {
+      for (r ← raysNotAllCenter) yield {
+        g.intersects(r) match {
+          case Some(p) if p == genes.core ⇒ {
+            destroyed = true
+          }
+          case Some(p) ⇒ {
+            g = g.remove(p)
+            count += p.kind.hitpoints
+          }
+          case None ⇒ {}
+        }
+      }
+    } while (!destroyed)
+    count * BARRAGE_SURVIVABLE_FACTOR
   }
 
   lazy val score: Double = {
     val v = pieceCountScore + massScore + hpScore +
-      averagePathToCoreScore + boundingBoxScore +
-      maxPathToCoreScore + angularInertiaScore +
-      pieceConnectednessScore + minMinCutScore + averageMinCutScore
-    def scoresStr = s"$pieceCountScore + $massScore + $hpScore + $averagePathToCoreScore + " +
-      s"$boundingBoxScore + $maxPathToCoreScore + $angularInertiaScore + " +
-      s"$pieceConnectednessScore + $minMinCutScore + $averageMinCutScore"
-    assert(!v.isInfinite, s"Got inf from: $scoresStr\n$genes")
-    assert(!v.isNaN, s"Got NaN from: $scoresStr\n$genes")
+      //averagePathToCoreScore + maxPathToCoreScore +
+      boundingBoxScore + angularInertiaScore +
+      //pieceConnectednessScore + minMinCutScore + averageMinCutScore +
+      averageDamageScore + maxDamageScore +
+      averageSurvivableScore + minSurvivableScore +
+      barrageSurvivableScore
+    assert(!v.isInfinite, s"Got inf from: $genes")
+    assert(!v.isNaN, s"Got NaN from: $genes")
     v
   }
 }
 
 object Phynotype {
-  val PIECE_COUNT_FACTOR = 2.0
-  val MASS_FACTOR = 0.0
+  val PIECE_COUNT_FACTOR = -1
+  val MASS_FACTOR = -0.001
   val HP_FACTOR = 0
   val AVERAGE_PATH_TO_CORE_FACTOR = 0
   val MAX_PATH_TO_CORE_FACTOR = 0
-  val BOUNDING_BOX_FACTOR = 1.0
-  val ANGULAR_INERTIA_FACTOR = -0.01
-  val PIECE_CONNECTEDNESS_SCORE = 0
-  val MIN_MIN_CUT_FACTOR = 1.0
-  val AVERAGE_MIN_CUT_FACTOR = 1.0
+  val BOUNDING_BOX_FACTOR = 0.02
+  val ANGULAR_INERTIA_FACTOR = -0.0001
+  val PIECE_CONNECTEDNESS_FACTOR = 0
+  val MIN_MIN_CUT_FACTOR = 0.0
+  val AVERAGE_MIN_CUT_FACTOR = 2.0
+  val AVERAGE_DAMAGE_FACTOR = -2
+  val MAX_DAMAGE_FACTOR = -2
+  val AVERAGE_SURVIVABLE_FACTOR = 0.5
+  val MIN_SURVIVABLE_FACTOR = 0.2
+  val BARRAGE_SURVIVABLE_FACTOR = 1
+
+  val CORE_DAMAGE = 20.0
+
+  val rays = (0.0 to 2 * math.Pi by math.Pi / 11).map { th ⇒
+    val v = Mat3.rotate(th) * Vec2(100, 0)
+    Ray(v, -v.normalized)
+  }
+
+  val raysNotAllCenter = {
+    val targetSteps = (-5.0 to 5 by 1)
+    val s = for (x ← targetSteps; y ← targetSteps; th ← (0.0 to 2 * math.Pi by math.Pi / 7)) yield {
+      val origin = Mat3.rotate(th) * Vec2(100, 0)
+      val target = Vec2(x, y)
+      Ray(origin, (target - origin).normalized)
+    }
+    s.foldLeft(Seq[Ray]()) { (acc, r) ⇒
+      if (acc.exists(r =~ _))
+        acc
+      else
+        acc :+ r
+    }
+  }
+  //println(raysNotAllCenter.size, raysNotAllCenter)
 
   import scala.language.implicitConversions
   implicit def extendGenotypeWithPhynotype(g: Genotype): Phynotype = Phynotype(g)

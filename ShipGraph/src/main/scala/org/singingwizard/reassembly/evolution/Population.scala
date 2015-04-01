@@ -34,10 +34,10 @@ case class Population(phynotypes: Seq[Phynotype]) {
 }
 
 object Population {
-  val BREEDING_POOL_SIZE = 0.25
-  val REPLACEMENT_RATE = 0.25
-  val NUMBER_OF_PARENTS = 2
-  val N_MUTATIONS = 5
+  val BREEDING_POOL_SIZE = 0.2
+  val REPLACEMENT_RATE = 0.3
+  val NUMBER_OF_PARENTS = 4
+  val N_MUTATIONS = 6
 
   def apply(gs: Iterable[Genotype]): Population = Population(buildPhynotypes(gs.toSeq).sorted)
 

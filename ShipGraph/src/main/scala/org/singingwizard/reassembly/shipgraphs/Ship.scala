@@ -61,6 +61,17 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
     }
   }
 
+  /*
+  def add(ps: Iterable[PlacedPiece]): Option[ShipT] = {
+    val s = mutable.Set() ++ ps
+    def addEach(s: Set[PlacedPiece], seg): Option[ShipT] = {
+      for (p <- s) {
+        
+      }
+    }
+  }
+  */
+
   def attach(segment: ShipSegment, porta: Port, portb: Port, allowPartial: Boolean = false) = attachGet(segment, porta, portb, allowPartial)._1
   /**
    * Attach the segment to this ship. Return the new ship and the pieces that could not be attached.
@@ -71,15 +82,6 @@ abstract class ShipGraphBase[ShipT <: ShipGraphBase[ShipT]] protected (val graph
     val portaPlace = porta.placedPort
     val portbPlace = portb.placedPort
     val trans = portbPlace.matchingTransform(portaPlace)
-
-    /*
-    println(porta, portb)
-    println(portaPlace, portbPlace)
-    println(portaPlace.transform(trans), portbPlace)
-    println(this)
-    println(segment)
-    println(trans)
-    */
 
     val visitor = segment.graph.dfsIterator(porta.piece)
 
@@ -277,16 +279,20 @@ final class Ship protected (graph: ShipGraph, ports: SpatiallyBinnedSet2[Port], 
     extends ShipGraphBase[Ship](graph, ports) {
   override def copy(graph: ShipGraph, ports: SpatiallyBinnedSet2[Port]) = new Ship(graph, ports, core)
 
-  def remove(p: PlacedPiece): Ship = {
+  def remove(p: PlacedPiece): Ship = removePartition(p)._1
+  def removePartition(p: PlacedPiece): (Ship, Set[PlacedPiece]) = {
     if (p == core)
-      return this
+      return (this, Set())
 
     val unreachedPieces = mutable.HashSet() ++ pieces
     graph.dfsIterator(core, _ != p) foreach { p2 ⇒
       unreachedPieces -= p2
     }
+
     val newg = graph removeNodes unreachedPieces
-    copy(graph = newg, ports = SpatiallyBinnedPortSet() addValues newg.nodes.iterator.flatMap(_.ports))
+    val newship = copy(graph = newg, ports = SpatiallyBinnedPortSet() addValues newg.nodes.iterator.flatMap(_.ports))
+    //val newseg = unreachedPieces.foldLeft(ShipSegment())((s, p) ⇒ s.add(p).get)
+    (newship, unreachedPieces.toSet)
   }
 
   def piecesWithoutCore = pieces.filter(_ != core)
